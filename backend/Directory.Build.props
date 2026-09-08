@@ -1,0 +1,20 @@
+<Project>
+
+  <!--
+    Ajustes compartidos por TODOS los proyectos de la solucion.
+    Centralizar aca evita que cada .csproj repita (y desincronice) lo mismo.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>12.0</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+
+    <!-- Un warning que se ignora hoy es un bug que se paga manana. -->
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+
+</Project>

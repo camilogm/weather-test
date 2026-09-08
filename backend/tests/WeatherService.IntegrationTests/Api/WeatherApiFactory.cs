@@ -133,18 +133,56 @@ public sealed class FakeWeatherProvider : IWeatherProvider
     }
 }
 
-/// <summary>Knows a couple of cities and nothing else, on purpose.</summary>
+/// <summary>Knows a handful of cities and nothing else, on purpose.</summary>
 public sealed class FakeLocationResolver : ILocationResolver
 {
-    private static readonly Dictionary<string, GeoLocation> Cities =
-        new(StringComparer.OrdinalIgnoreCase)
-        {
-            ["San Salvador"] = GeoLocation.SanSalvador,
-            ["Guatemala City"] = new("Guatemala City", 14.6349, -90.5069),
-        };
+    private static readonly LocationMatch[] Cities =
+    [
+        new("San Salvador", "San Salvador", "El Salvador", "SV", 13.6929, -89.2182),
+        new("San Salvador de Jujuy", "Jujuy", "Argentina", "AR", -24.1858, -65.2995),
+        new("Guatemala City", "Guatemala", "Guatemala", "GT", 14.6349, -90.5069),
+    ];
 
-    public Task<GeoLocation> ResolveAsync(string city, CancellationToken cancellationToken) =>
-        Cities.TryGetValue(city, out var found)
-            ? Task.FromResult(found)
-            : throw new UnknownLocationException(city);
+    /// <summary>Set to have the geocoder behave as if it were down.</summary>
+    public bool IsDown { get; set; }
+
+    public Task<GeoLocation> ResolveAsync(string city, CancellationToken cancellationToken)
+    {
+        if (IsDown)
+        {
+            throw new UnknownLocationException(city);
+        }
+
+        var match = Cities.FirstOrDefault(candidate =>
+            string.Equals(candidate.Name, city, StringComparison.OrdinalIgnoreCase));
+
+        return match is null
+            ? throw new UnknownLocationException(city)
+            : Task.FromResult(match.ToGeoLocation());
+    }
+
+    public Task<IReadOnlyList<LocationMatch>> SearchAsync(
+        string query,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        if (IsDown)
+        {
+            throw new WeatherProviderException("fake-geocoding", "the geocoder is down");
+        }
+
+        if (query.Trim().Length < 2)
+        {
+            return Task.FromResult<IReadOnlyList<LocationMatch>>([]);
+        }
+
+        IReadOnlyList<LocationMatch> matches =
+        [
+            .. Cities.Where(candidate =>
+                    candidate.Name.Contains(query.Trim(), StringComparison.OrdinalIgnoreCase))
+                .Take(limit),
+        ];
+
+        return Task.FromResult(matches);
+    }
 }

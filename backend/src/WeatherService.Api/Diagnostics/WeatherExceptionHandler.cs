@@ -49,6 +49,13 @@ public sealed class WeatherExceptionHandler : IExceptionHandler
                 "Weather data is temporarily unavailable",
                 exception.Message),
 
+            // A search has no cache or history to fall back on, so an upstream
+            // failure reaches here directly. It is still an outage, not a fault.
+            WeatherProviderException => (
+                StatusCodes.Status503ServiceUnavailable,
+                "Weather data is temporarily unavailable",
+                exception.Message),
+
             OperationCanceledException when httpContext.RequestAborted.IsCancellationRequested => (
                 ClientClosedRequest,
                 "Client closed the request",

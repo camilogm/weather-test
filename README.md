@@ -78,6 +78,37 @@ GET /weather/forecast?latitude=13.6929&longitude=-89.2182
 Same query parameters; returns temperature, apparent temperature, humidity,
 wind and condition.
 
+### `GET /locations?query=san&limit=8`
+
+Candidate places for a partial name, for the front end's city picker.
+
+```jsonc
+{
+  "results": [
+    {
+      "name": "San Salvador",
+      "region": "San Salvador",
+      "country": "El Salvador",
+      "countryCode": "SV",
+      "latitude": 13.68935,
+      "longitude": -89.18718
+    }
+  ]
+}
+```
+
+Region and country are part of the contract rather than a nicety: "San
+Salvador" alone cannot be chosen with confidence — El Salvador's capital and
+San Salvador de Jujuy both answer to it — and the picker exists precisely so a
+person can see which one they are selecting.
+
+This endpoint is why the browser never calls the geocoding provider directly.
+Going straight there would bypass the circuit breaker, the cache and the error
+handling this service already owns, and put a third-party host in the page's
+critical path. Nothing matching returns an empty list with `200`; a geocoder
+that is down returns `503`, because "we could not search" and "there is nothing
+named that" are different answers.
+
 ### Responses
 
 | Status | When                                                             |

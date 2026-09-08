@@ -152,10 +152,5 @@ public sealed class ForecastService : IForecastService
         }
     }
 
-    /// <summary>
-    /// Coordinates are rounded so that near-identical requests share a cache slot;
-    /// four decimals is roughly 11 metres, far below any weather grid resolution.
-    /// </summary>
-    private static string CacheKeyFor(GeoLocation location) =>
-        $"forecast:weekly:{location.Latitude:F4},{location.Longitude:F4}";
+    private static string CacheKeyFor(GeoLocation location) => $"forecast:weekly:{location.Key}";
 }

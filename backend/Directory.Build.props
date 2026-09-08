@@ -1,8 +1,8 @@
 <Project>
 
   <!--
-    Ajustes compartidos por TODOS los proyectos de la solucion.
-    Centralizar aca evita que cada .csproj repita (y desincronice) lo mismo.
+    Settings shared by EVERY project in the solution, so no .csproj has to repeat
+    them and let them drift apart.
   -->
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
@@ -10,7 +10,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
 
-    <!-- Un warning que se ignora hoy es un bug que se paga manana. -->
+    <!-- A warning ignored today is a bug paid for tomorrow. -->
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
 

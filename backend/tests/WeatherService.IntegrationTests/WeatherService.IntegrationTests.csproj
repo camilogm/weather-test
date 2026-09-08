@@ -13,11 +13,11 @@
     <PackageReference Include="FluentAssertions" />
     <PackageReference Include="NSubstitute" />
 
-    <!-- Levanta la app real en memoria. -->
+    <!-- Boots the real application in memory. -->
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
-    <!-- Simula Open-Meteo: latencia, 500s, timeouts. Con esto probamos el breaker. -->
+    <!-- Impersonates Open-Meteo: latency, 500s, timeouts. This is how the breaker is proven. -->
     <PackageReference Include="WireMock.Net" />
-    <!-- SQLite in-memory como DB de tests (relacional de verdad, no el provider InMemory). -->
+    <!-- SQLite in memory as the test database: genuinely relational, unlike the InMemory provider. -->
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
   </ItemGroup>
 

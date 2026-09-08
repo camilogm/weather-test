@@ -1,10 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <!--
-    El nucleo. Modelo de dominio, puertos y casos de uso.
-    NO conoce HTTP, ni EF, ni IMemoryCache, ni Open-Meteo.
-    Lo unico que entra aca son abstracciones de logging.
-    Si algun dia aparece un PackageReference de infraestructura, algo se hizo mal.
+    The core: domain model, ports and use cases.
+    It knows nothing about HTTP, EF, IMemoryCache or Open-Meteo.
+    Logging abstractions are the only thing allowed in.
+    If an infrastructure PackageReference ever appears here, something went wrong.
   -->
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />

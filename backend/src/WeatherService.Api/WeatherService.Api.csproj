@@ -5,7 +5,7 @@
     <PackageReference Include="Serilog.Sinks.Console" />
     <PackageReference Include="Swashbuckle.AspNetCore" />
 
-    <!-- Necesario para que `dotnet ef` use este proyecto como startup. -->
+    <!-- Required for `dotnet ef` to use this project as its startup project. -->
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>

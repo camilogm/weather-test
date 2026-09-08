@@ -1,12 +1,7 @@
 import type { DailyForecast } from '../api/types'
+import { t, translateCondition } from '../i18n'
 import { WeatherIcon } from './WeatherIcon'
-import {
-  dayAndMonthOf,
-  formatTemperature,
-  humanizeCondition,
-  isToday,
-  weekdayOf,
-} from './format'
+import { dayAndMonthOf, formatTemperature, isToday, weekdayOf } from './format'
 
 export function ForecastWeek({ days }: { days: DailyForecast[] }) {
   // One scale for the whole week, so the bars below are comparable across days
@@ -17,7 +12,7 @@ export function ForecastWeek({ days }: { days: DailyForecast[] }) {
   return (
     <section aria-labelledby="forecast-heading">
       <h2 id="forecast-heading" className="mb-3 text-sm font-medium text-ink-muted">
-        Next {days.length} days
+        {t('forecast.heading', { days: days.length })}
       </h2>
 
       <ol className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
@@ -37,7 +32,7 @@ interface DayProps {
 
 function ForecastDay({ day, coldest, warmest }: DayProps) {
   const today = isToday(day.date)
-  const condition = humanizeCondition(day.condition)
+  const condition = translateCondition(day.condition)
 
   const span = Math.max(warmest - coldest, 1)
   const offset = ((day.minTemperatureC - coldest) / span) * 100
@@ -52,7 +47,7 @@ function ForecastDay({ day, coldest, warmest }: DayProps) {
       ].join(' ')}
     >
       <div className="sm:order-1">
-        <p className="font-semibold">{today ? 'Today' : weekdayOf(day.date)}</p>
+        <p className="font-semibold">{today ? t('forecast.today') : weekdayOf(day.date)}</p>
         <p className="text-xs text-ink-muted">{dayAndMonthOf(day.date)}</p>
       </div>
 

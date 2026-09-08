@@ -1,0 +1,75 @@
+{
+  "app": {
+    "eyebrow": "Pronóstico semanal"
+  },
+
+  "search": {
+    "label": "Ciudad",
+    "placeholder": "Buscar una ciudad",
+    "submit": "Buscar",
+    "refresh": "Actualizar el pronóstico"
+  },
+
+  "current": {
+    "heading": "Condiciones actuales",
+    "summary": "{condition} · sensación térmica {apparent}",
+    "humidity": "Humedad",
+    "wind": "Viento",
+    "windValue": "{speed} km/h",
+    "humidityValue": "{percent}%",
+    "observedAt": "Medición de las {when}"
+  },
+
+  "forecast": {
+    "heading": "Próximos {days} días",
+    "today": "Hoy"
+  },
+
+  "degraded": {
+    "title": "Mostrando datos anteriores.",
+    "staleCache": "El servicio meteorológico no responde, así que este es el último dato que quedó en caché.",
+    "historical": "El servicio meteorológico no responde, así que este es el último pronóstico que quedó guardado.",
+    "updatedAt": "Última actualización: {when}."
+  },
+
+  "loading": {
+    "announcement": "Cargando el pronóstico…"
+  },
+
+  "error": {
+    "title": "No se pudo cargar el pronóstico",
+    "retry": "Reintentar",
+    "notFound": "No encontramos ninguna ciudad que coincida con «{city}».",
+    "unavailable": "El servicio meteorológico no está disponible en este momento.",
+    "unreachable": "No se pudo conectar con el servicio meteorológico.",
+    "unexpected": "Algo salió mal al cargar el pronóstico."
+  },
+
+  "footer": {
+    "credit": "Datos de Open-Meteo a través de la API de WeatherService",
+    "servedFrom": "servido desde {source}"
+  },
+
+  "sources": {
+    "Provider": "el proveedor",
+    "Cache": "caché",
+    "StaleCache": "caché vencida",
+    "Historical": "el histórico"
+  },
+
+  "conditions": {
+    "Clear": "Despejado",
+    "MainlyClear": "Mayormente despejado",
+    "PartlyCloudy": "Parcialmente nublado",
+    "Overcast": "Nublado",
+    "Fog": "Niebla",
+    "Drizzle": "Llovizna",
+    "Rain": "Lluvia",
+    "FreezingRain": "Lluvia helada",
+    "Snow": "Nieve",
+    "RainShowers": "Chubascos",
+    "SnowShowers": "Chubascos de nieve",
+    "Thunderstorm": "Tormenta eléctrica",
+    "Unknown": "Sin datos"
+  }
+}

@@ -1,4 +1,5 @@
 import type { Provenance } from '../api/types'
+import { t } from '../i18n'
 import { formatObservedAt } from './format'
 
 /**
@@ -12,9 +13,7 @@ export function DegradedNotice({ provenance }: { provenance: Provenance }) {
   }
 
   const explanation =
-    provenance.source === 'StaleCache'
-      ? 'The weather service is unreachable, so this is the last reading we cached.'
-      : 'The weather service is unreachable, so this is the last forecast we stored.'
+    provenance.source === 'StaleCache' ? t('degraded.staleCache') : t('degraded.historical')
 
   return (
     <div
@@ -34,8 +33,8 @@ export function DegradedNotice({ provenance }: { provenance: Provenance }) {
       </svg>
 
       <p className="leading-relaxed">
-        <span className="font-semibold">Showing older data.</span> {explanation} Last updated{' '}
-        {formatObservedAt(provenance.retrievedAt)}.
+        <span className="font-semibold">{t('degraded.title')}</span> {explanation}{' '}
+        {t('degraded.updatedAt', { when: formatObservedAt(provenance.retrievedAt) })}
       </p>
     </div>
   )

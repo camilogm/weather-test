@@ -1,4 +1,4 @@
-import type { CurrentWeather, ProblemDetails, WeeklyForecast } from './types'
+import type { CurrentWeather, WeeklyForecast } from './types'
 
 /**
  * Where the backend lives.
@@ -14,19 +14,40 @@ const API_BASE_URL = (
 /** The city this application exists for. */
 export const DEFAULT_CITY = 'San Salvador'
 
-/** A failure the UI can actually explain to a person. */
+/**
+ * What went wrong, as a category rather than a sentence.
+ *
+ * The API answers RFC 7807 problem documents whose `detail` is written in
+ * English for whoever is debugging. Rendering that straight into a Spanish UI
+ * would leak the server's language into the product, so the kind travels and
+ * the interface picks its own words.
+ */
+export type WeatherErrorKind = 'notFound' | 'unavailable' | 'unreachable' | 'unexpected'
+
 export class WeatherApiError extends Error {
+  readonly kind: WeatherErrorKind
+
   readonly status: number | undefined
 
-  /** True when the backend says its upstream is down — a retry may well work. */
-  readonly retryable: boolean
-
-  constructor(message: string, status: number | undefined, retryable: boolean) {
-    super(message)
+  constructor(kind: WeatherErrorKind, status?: number) {
+    // English on purpose: this message is for a console and a stack trace,
+    // never for a person using the product.
+    super(`Weather API request failed (${kind}${status ? `, HTTP ${status}` : ''})`)
     this.name = 'WeatherApiError'
+    this.kind = kind
     this.status = status
-    this.retryable = retryable
   }
+
+  /** A missing city will still be missing on the next attempt; an outage may not be. */
+  get retryable(): boolean {
+    return this.kind !== 'notFound'
+  }
+}
+
+function kindFor(status: number): WeatherErrorKind {
+  if (status === 404) return 'notFound'
+  if (status === 503) return 'unavailable'
+  return 'unexpected'
 }
 
 async function get<T>(path: string, signal?: AbortSignal): Promise<T> {
@@ -43,32 +64,14 @@ async function get<T>(path: string, signal?: AbortSignal): Promise<T> {
       throw cause
     }
 
-    throw new WeatherApiError(
-      `Could not reach the weather service at ${API_BASE_URL}.`,
-      undefined,
-      true,
-    )
+    throw new WeatherApiError('unreachable')
   }
 
   if (!response.ok) {
-    const problem = await readProblem(response)
-
-    throw new WeatherApiError(
-      problem?.detail ?? problem?.title ?? `The service answered ${response.status}.`,
-      response.status,
-      response.status === 503 || response.status >= 500,
-    )
+    throw new WeatherApiError(kindFor(response.status), response.status)
   }
 
   return (await response.json()) as T
-}
-
-async function readProblem(response: Response): Promise<ProblemDetails | null> {
-  try {
-    return (await response.json()) as ProblemDetails
-  } catch {
-    return null
-  }
 }
 
 function locationQuery(city: string): string {

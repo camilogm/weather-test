@@ -291,6 +291,28 @@ make web-build      # type-check and production build
 image built for one host cannot be repointed by restarting it with a different
 variable — which is why `docker-compose.yml` passes it as a build argument.
 
+**Copy.** The interface is in Spanish, and every user-facing string lives in
+`src/i18n/es.json` — nowhere else. There is no language switcher, because the
+product does not need one; the copy is centralised for two reasons that outlast
+that question:
+
+- Someone who is not a developer can read and correct the whole product's wording
+  in one file, without opening a single `.tsx`.
+- `CopyKey` is derived from the JSON, so a missing or misspelled key fails the
+  **build** rather than rendering blank space in front of a user.
+
+Wording avoids `tú`/`vos` imperatives entirely — El Salvador uses *voseo*,
+Mexico and Colombia do not, and picking one would sound foreign to most of the
+region. The action lives in the button label (`Reintentar`) instead of in the
+sentence. Dates and numbers are formatted with an explicit `es-419` locale:
+left to the browser's preference, a Spanish page renders `Mon 7 Sep` for anyone
+whose machine is set to English, which reads worse than either language alone.
+
+Errors travel from the API layer as a **kind** (`notFound`, `unavailable`,
+`unreachable`, `unexpected`), never as a sentence. The backend's RFC 7807
+`detail` is written in English for whoever is debugging, and rendering it
+straight into the UI would leak the server's language into the product.
+
 **What it does with provenance.** The degraded banner is not decoration. When the
 backend reports `StaleCache` or `Historical`, the UI says so and shows when the
 data was taken. Showing a three-hour-old forecast as if it were current would be

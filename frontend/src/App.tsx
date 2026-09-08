@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 
 import { DEFAULT_CITY } from './api/weather'
+import { t, translateSource } from './i18n'
 import { useWeather } from './hooks/useWeather'
 import { CurrentConditions } from './components/CurrentConditions'
 import { DegradedNotice } from './components/DegradedNotice'
@@ -29,7 +30,7 @@ export default function App() {
     <div className="mx-auto flex min-h-full max-w-6xl flex-col gap-6 px-4 py-6 sm:px-6 sm:py-10">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-sm font-medium text-accent">Weekly forecast</p>
+          <p className="text-sm font-medium text-accent">{t('app.eyebrow')}</p>
           <h1 className="mt-1 text-3xl font-semibold tracking-tight sm:text-4xl">
             {forecast?.location.name ?? city}
           </h1>
@@ -37,14 +38,14 @@ export default function App() {
 
         <form onSubmit={onSearch} className="flex gap-2">
           <label htmlFor="city" className="sr-only">
-            City
+            {t('search.label')}
           </label>
           <input
             id="city"
             name="city"
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
-            placeholder="Search a city"
+            placeholder={t('search.placeholder')}
             autoComplete="address-level2"
             className="min-w-0 flex-1 rounded-lg border border-line bg-surface px-3 py-2 text-sm placeholder:text-ink-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:w-56 sm:flex-none"
           />
@@ -52,12 +53,12 @@ export default function App() {
             type="submit"
             className="shrink-0 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-canvas transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           >
-            Search
+            {t('search.submit')}
           </button>
           <button
             type="button"
             onClick={refresh}
-            aria-label="Refresh the forecast"
+            aria-label={t('search.refresh')}
             className="shrink-0 rounded-lg border border-line bg-surface px-3 py-2 transition-colors hover:bg-surface-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           >
             <svg viewBox="0 0 20 20" className="size-4" aria-hidden="true">
@@ -84,7 +85,7 @@ export default function App() {
       <main className="flex-1 space-y-6">
         {status === 'loading' && <LoadingState />}
 
-        {status === 'error' && error && <ErrorState error={error} onRetry={refresh} />}
+        {status === 'error' && error && <ErrorState error={error} city={city} onRetry={refresh} />}
 
         {status === 'ready' && forecast && (
           <>
@@ -96,8 +97,13 @@ export default function App() {
       </main>
 
       <footer className="border-t border-line pt-4 text-xs text-ink-muted">
-        Data from Open-Meteo through the WeatherService API
-        {forecast && <> · served from {forecast.provenance.source}</>}
+        {t('footer.credit')}
+        {forecast && (
+          <>
+            {' · '}
+            {t('footer.servedFrom', { source: translateSource(forecast.provenance.source) })}
+          </>
+        )}
       </footer>
     </div>
   )

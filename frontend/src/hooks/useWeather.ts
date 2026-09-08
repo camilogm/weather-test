@@ -5,38 +5,39 @@ import type { CurrentWeather, WeeklyForecast } from '../api/types'
 
 type Status = 'loading' | 'ready' | 'error'
 
-interface WeatherState {
-  status: Status
+/** The outcome of one specific request, tagged with which request it answered. */
+interface Settled {
+  requestId: string
   forecast: WeeklyForecast | null
   current: CurrentWeather | null
   error: WeatherApiError | null
 }
 
-const initialState: WeatherState = {
-  status: 'loading',
-  forecast: null,
-  current: null,
-  error: null,
-}
-
 /**
  * Loads the forecast and current conditions for a city.
  *
+ * `status` is DERIVED during render rather than written from inside the effect.
+ * Setting "loading" in the effect would mean every city change renders twice —
+ * once with the previous city's data still on screen, once after the state
+ * lands. Comparing the settled result's request id against the current one
+ * gives the same answer in a single pass, and makes a stale response
+ * structurally impossible to display: it simply does not match.
+ *
  * The forecast is the page; current conditions are a bonus. So a failing
  * forecast is an error state, while failing current conditions just leave that
- * panel out — losing the extra should never blank out the thing people came for.
+ * panel out — losing the extra should never blank out what people came for.
  */
 export function useWeather(city: string) {
-  const [state, setState] = useState<WeatherState>(initialState)
   const [reloadToken, setReloadToken] = useState(0)
+  const [settled, setSettled] = useState<Settled | null>(null)
+
+  const requestId = `${city}#${reloadToken}`
 
   const refresh = useCallback(() => setReloadToken((token) => token + 1), [])
 
   useEffect(() => {
     const controller = new AbortController()
     let active = true
-
-    setState((previous) => ({ ...previous, status: 'loading', error: null }))
 
     async function load() {
       try {
@@ -46,21 +47,18 @@ export function useWeather(city: string) {
         const current = await fetchCurrent(city, controller.signal).catch(() => null)
 
         if (active) {
-          setState({ status: 'ready', forecast, current, error: null })
+          setSettled({ requestId, forecast, current, error: null })
         }
       } catch (cause) {
         if (!active || (cause instanceof DOMException && cause.name === 'AbortError')) {
           return
         }
 
-        setState({
-          status: 'error',
+        setSettled({
+          requestId,
           forecast: null,
           current: null,
-          error:
-            cause instanceof WeatherApiError
-              ? cause
-              : new WeatherApiError('Something went wrong loading the forecast.', undefined, true),
+          error: cause instanceof WeatherApiError ? cause : new WeatherApiError('unexpected'),
         })
       }
     }
@@ -71,7 +69,17 @@ export function useWeather(city: string) {
       active = false
       controller.abort()
     }
-  }, [city, reloadToken])
+  }, [city, requestId])
 
-  return { ...state, refresh }
+  const isCurrent = settled?.requestId === requestId
+
+  const status: Status = !isCurrent || !settled ? 'loading' : settled.error ? 'error' : 'ready'
+
+  return {
+    status,
+    forecast: isCurrent ? (settled?.forecast ?? null) : null,
+    current: isCurrent ? (settled?.current ?? null) : null,
+    error: isCurrent ? (settled?.error ?? null) : null,
+    refresh,
+  }
 }

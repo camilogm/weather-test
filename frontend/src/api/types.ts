@@ -46,6 +46,31 @@ export interface CurrentWeather {
   observedAt: string
 }
 
+/** A candidate place from `/locations`, with the context needed to pick one. */
+export interface LocationSuggestion {
+  name: string
+  region: string | null
+  country: string | null
+  countryCode: string | null
+  latitude: number
+  longitude: number
+}
+
+export interface LocationSearchResponse {
+  results: LocationSuggestion[]
+}
+
+/**
+ * A place the person has actually chosen. Coordinates travel with it, so the
+ * forecast request never has to geocode the name a second time — and can never
+ * land on a different city of the same name than the one they picked.
+ */
+export interface SelectedLocation {
+  name: string
+  latitude: number
+  longitude: number
+}
+
 export type WeatherIconName =
   | 'clear'
   | 'mostly-clear'

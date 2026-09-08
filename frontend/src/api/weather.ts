@@ -1,4 +1,10 @@
-import type { CurrentWeather, WeeklyForecast } from './types'
+import type {
+  CurrentWeather,
+  LocationSearchResponse,
+  LocationSuggestion,
+  SelectedLocation,
+  WeeklyForecast,
+} from './types'
 
 /**
  * Where the backend lives.
@@ -11,8 +17,21 @@ const API_BASE_URL = (
   import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080'
 ).replace(/\/+$/, '')
 
-/** The city this application exists for. */
-export const DEFAULT_CITY = 'San Salvador'
+/**
+ * The city this application exists for, with its coordinates already known.
+ *
+ * Shipping the coordinates means the very first page load needs no geocoding
+ * call at all — one less thing between opening the page and seeing a forecast,
+ * and one less thing that can be down.
+ */
+export const DEFAULT_LOCATION: SelectedLocation = {
+  name: 'San Salvador',
+  latitude: 13.6929,
+  longitude: -89.2182,
+}
+
+/** Below this the query matches too much to be worth asking the server about. */
+export const MIN_QUERY_LENGTH = 2
 
 /**
  * What went wrong, as a category rather than a sentence.
@@ -74,14 +93,41 @@ async function get<T>(path: string, signal?: AbortSignal): Promise<T> {
   return (await response.json()) as T
 }
 
-function locationQuery(city: string): string {
-  return `?city=${encodeURIComponent(city)}`
+/**
+ * Coordinates decide the place; the name only decides what the response is
+ * labelled with. Sending both removes the ambiguity a name alone carries.
+ */
+function locationQuery(location: SelectedLocation): string {
+  return (
+    `?city=${encodeURIComponent(location.name)}` +
+    `&latitude=${location.latitude}` +
+    `&longitude=${location.longitude}`
+  )
 }
 
-export function fetchForecast(city: string, signal?: AbortSignal): Promise<WeeklyForecast> {
-  return get<WeeklyForecast>(`/weather/forecast${locationQuery(city)}`, signal)
+export function fetchForecast(
+  location: SelectedLocation,
+  signal?: AbortSignal,
+): Promise<WeeklyForecast> {
+  return get<WeeklyForecast>(`/weather/forecast${locationQuery(location)}`, signal)
 }
 
-export function fetchCurrent(city: string, signal?: AbortSignal): Promise<CurrentWeather> {
-  return get<CurrentWeather>(`/weather/current${locationQuery(city)}`, signal)
+export function fetchCurrent(
+  location: SelectedLocation,
+  signal?: AbortSignal,
+): Promise<CurrentWeather> {
+  return get<CurrentWeather>(`/weather/current${locationQuery(location)}`, signal)
+}
+
+/** Candidate places for a partial name, straight from our own API. */
+export async function searchLocations(
+  query: string,
+  signal?: AbortSignal,
+): Promise<LocationSuggestion[]> {
+  const body = await get<LocationSearchResponse>(
+    `/locations?query=${encodeURIComponent(query)}&limit=8`,
+    signal,
+  )
+
+  return body.results
 }

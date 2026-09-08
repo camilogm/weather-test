@@ -3,10 +3,12 @@
     "eyebrow": "Pronóstico semanal"
   },
 
-  "search": {
-    "label": "Ciudad",
-    "placeholder": "Buscar una ciudad",
-    "submit": "Buscar",
+  "picker": {
+    "label": "Buscar una ciudad",
+    "searching": "Buscando…",
+    "noResults": "No encontramos ninguna ciudad con ese nombre",
+    "failed": "No se pudo buscar en este momento",
+    "resultsCount": "{count} ciudades encontradas",
     "refresh": "Actualizar el pronóstico"
   },
 

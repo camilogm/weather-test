@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 
 import { WeatherApiError, fetchCurrent, fetchForecast } from '../api/weather'
-import type { CurrentWeather, WeeklyForecast } from '../api/types'
+import type { CurrentWeather, SelectedLocation, WeeklyForecast } from '../api/types'
 
 type Status = 'loading' | 'ready' | 'error'
 
@@ -14,11 +14,11 @@ interface Settled {
 }
 
 /**
- * Loads the forecast and current conditions for a city.
+ * Loads the forecast and current conditions for a chosen place.
  *
  * `status` is DERIVED during render rather than written from inside the effect.
- * Setting "loading" in the effect would mean every city change renders twice —
- * once with the previous city's data still on screen, once after the state
+ * Setting "loading" in the effect would mean every change renders twice — once
+ * with the previous location's data still on screen, once after the state
  * lands. Comparing the settled result's request id against the current one
  * gives the same answer in a single pass, and makes a stale response
  * structurally impossible to display: it simply does not match.
@@ -27,24 +27,29 @@ interface Settled {
  * forecast is an error state, while failing current conditions just leave that
  * panel out — losing the extra should never blank out what people came for.
  */
-export function useWeather(city: string) {
+export function useWeather(location: SelectedLocation) {
   const [reloadToken, setReloadToken] = useState(0)
   const [settled, setSettled] = useState<Settled | null>(null)
 
-  const requestId = `${city}#${reloadToken}`
+  // Depends on the primitive fields rather than the object: a caller that
+  // builds `{ name, latitude, longitude }` inline would hand us a new identity
+  // on every render, and an effect keyed on that would never stop firing.
+  const { name, latitude, longitude } = location
+  const requestId = `${name}@${latitude},${longitude}#${reloadToken}`
 
   const refresh = useCallback(() => setReloadToken((token) => token + 1), [])
 
   useEffect(() => {
     const controller = new AbortController()
+    const target: SelectedLocation = { name, latitude, longitude }
     let active = true
 
     async function load() {
       try {
-        const forecast = await fetchForecast(city, controller.signal)
+        const forecast = await fetchForecast(target, controller.signal)
 
         // Best effort: the page still works without it.
-        const current = await fetchCurrent(city, controller.signal).catch(() => null)
+        const current = await fetchCurrent(target, controller.signal).catch(() => null)
 
         if (active) {
           setSettled({ requestId, forecast, current, error: null })
@@ -69,7 +74,7 @@ export function useWeather(city: string) {
       active = false
       controller.abort()
     }
-  }, [city, requestId])
+  }, [name, latitude, longitude, requestId])
 
   const isCurrent = settled?.requestId === requestId
 

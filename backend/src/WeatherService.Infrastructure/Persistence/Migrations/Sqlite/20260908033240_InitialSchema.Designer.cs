@@ -11,7 +11,7 @@ using WeatherService.Infrastructure.Persistence;
 namespace WeatherService.Infrastructure.Persistence.Migrations.Sqlite
 {
     [DbContext(typeof(SqliteWeatherDbContext))]
-    [Migration("20260908024634_InitialSchema")]
+    [Migration("20260908033240_InitialSchema")]
     partial class InitialSchema
     {
         /// <inheritdoc />
@@ -24,29 +24,37 @@ namespace WeatherService.Infrastructure.Persistence.Migrations.Sqlite
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT");
+                        .HasColumnType("TEXT")
+                        .HasColumnName("id");
 
                     b.Property<string>("Condition")
                         .IsRequired()
                         .HasMaxLength(32)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("TEXT")
+                        .HasColumnName("condition");
 
                     b.Property<DateOnly>("Date")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("TEXT")
+                        .HasColumnName("date");
 
                     b.Property<Guid>("ForecastSnapshotId")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("TEXT")
+                        .HasColumnName("forecast_snapshot_id");
 
                     b.Property<double>("MaxTemperatureC")
-                        .HasColumnType("REAL");
+                        .HasColumnType("REAL")
+                        .HasColumnName("max_temperature_c");
 
                     b.Property<double>("MinTemperatureC")
-                        .HasColumnType("REAL");
+                        .HasColumnType("REAL")
+                        .HasColumnName("min_temperature_c");
 
-                    b.HasKey("Id");
+                    b.HasKey("Id")
+                        .HasName("pk_forecast_days");
 
                     b.HasIndex("ForecastSnapshotId", "Date")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasDatabaseName("ix_forecast_days_forecast_snapshot_id_date");
 
                     b.ToTable("forecast_days", (string)null);
                 });
@@ -55,28 +63,35 @@ namespace WeatherService.Infrastructure.Persistence.Migrations.Sqlite
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT");
+                        .HasColumnType("TEXT")
+                        .HasColumnName("id");
 
                     b.Property<double>("Latitude")
-                        .HasColumnType("REAL");
+                        .HasColumnType("REAL")
+                        .HasColumnName("latitude");
 
                     b.Property<string>("LocationKey")
                         .IsRequired()
                         .HasMaxLength(32)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("TEXT")
+                        .HasColumnName("location_key");
 
                     b.Property<string>("LocationName")
                         .IsRequired()
                         .HasMaxLength(128)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("TEXT")
+                        .HasColumnName("location_name");
 
                     b.Property<double>("Longitude")
-                        .HasColumnType("REAL");
+                        .HasColumnType("REAL")
+                        .HasColumnName("longitude");
 
                     b.Property<DateTime>("RetrievedAtUtc")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("TEXT")
+                        .HasColumnName("retrieved_at_utc");
 
-                    b.HasKey("Id");
+                    b.HasKey("Id")
+                        .HasName("pk_forecast_snapshots");
 
                     b.HasIndex("LocationKey", "RetrievedAtUtc")
                         .HasDatabaseName("ix_forecast_snapshots_location_key_retrieved_at");
@@ -90,7 +105,8 @@ namespace WeatherService.Infrastructure.Persistence.Migrations.Sqlite
                         .WithMany("Days")
                         .HasForeignKey("ForecastSnapshotId")
                         .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .IsRequired()
+                        .HasConstraintName("fk_forecast_days_forecast_snapshots_forecast_snapshot_id");
                 });
 
             modelBuilder.Entity("WeatherService.Infrastructure.Persistence.ForecastSnapshot", b =>

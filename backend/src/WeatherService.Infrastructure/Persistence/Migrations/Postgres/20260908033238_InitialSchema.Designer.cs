@@ -12,7 +12,7 @@ using WeatherService.Infrastructure.Persistence;
 namespace WeatherService.Infrastructure.Persistence.Migrations.Postgres
 {
     [DbContext(typeof(PostgresWeatherDbContext))]
-    [Migration("20260908024631_InitialSchema")]
+    [Migration("20260908033238_InitialSchema")]
     partial class InitialSchema
     {
         /// <inheritdoc />
@@ -29,29 +29,37 @@ namespace WeatherService.Infrastructure.Persistence.Migrations.Postgres
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
 
                     b.Property<string>("Condition")
                         .IsRequired()
                         .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("condition");
 
                     b.Property<DateOnly>("Date")
-                        .HasColumnType("date");
+                        .HasColumnType("date")
+                        .HasColumnName("date");
 
                     b.Property<Guid>("ForecastSnapshotId")
-                        .HasColumnType("uuid");
+                        .HasColumnType("uuid")
+                        .HasColumnName("forecast_snapshot_id");
 
                     b.Property<double>("MaxTemperatureC")
-                        .HasColumnType("double precision");
+                        .HasColumnType("double precision")
+                        .HasColumnName("max_temperature_c");
 
                     b.Property<double>("MinTemperatureC")
-                        .HasColumnType("double precision");
+                        .HasColumnType("double precision")
+                        .HasColumnName("min_temperature_c");
 
-                    b.HasKey("Id");
+                    b.HasKey("Id")
+                        .HasName("pk_forecast_days");
 
                     b.HasIndex("ForecastSnapshotId", "Date")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasDatabaseName("ix_forecast_days_forecast_snapshot_id_date");
 
                     b.ToTable("forecast_days", (string)null);
                 });
@@ -60,28 +68,35 @@ namespace WeatherService.Infrastructure.Persistence.Migrations.Postgres
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
 
                     b.Property<double>("Latitude")
-                        .HasColumnType("double precision");
+                        .HasColumnType("double precision")
+                        .HasColumnName("latitude");
 
                     b.Property<string>("LocationKey")
                         .IsRequired()
                         .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("location_key");
 
                     b.Property<string>("LocationName")
                         .IsRequired()
                         .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("location_name");
 
                     b.Property<double>("Longitude")
-                        .HasColumnType("double precision");
+                        .HasColumnType("double precision")
+                        .HasColumnName("longitude");
 
                     b.Property<DateTime>("RetrievedAtUtc")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("retrieved_at_utc");
 
-                    b.HasKey("Id");
+                    b.HasKey("Id")
+                        .HasName("pk_forecast_snapshots");
 
                     b.HasIndex("LocationKey", "RetrievedAtUtc")
                         .HasDatabaseName("ix_forecast_snapshots_location_key_retrieved_at");
@@ -95,7 +110,8 @@ namespace WeatherService.Infrastructure.Persistence.Migrations.Postgres
                         .WithMany("Days")
                         .HasForeignKey("ForecastSnapshotId")
                         .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .IsRequired()
+                        .HasConstraintName("fk_forecast_days_forecast_snapshots_forecast_snapshot_id");
                 });
 
             modelBuilder.Entity("WeatherService.Infrastructure.Persistence.ForecastSnapshot", b =>

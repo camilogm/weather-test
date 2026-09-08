@@ -1,3 +1,4 @@
+using System.Text;
 using Microsoft.EntityFrameworkCore;
 
 namespace WeatherService.Infrastructure.Persistence;
@@ -59,6 +60,78 @@ public abstract class WeatherDbContext : DbContext
 
             day.HasIndex(d => new { d.ForecastSnapshotId, d.Date }).IsUnique();
         });
+
+        UseSnakeCaseNames(modelBuilder);
+    }
+
+    /// <summary>
+    /// Renames every column, key, constraint and index to snake_case.
+    ///
+    /// Applied as a convention rather than twenty HasColumnName calls, because
+    /// the hand-written kind is the kind that gets forgotten on the next
+    /// property. Without it the schema comes out half snake_case (the tables,
+    /// named explicitly above) and half PascalCase (everything EF derives) —
+    /// which in Postgres also means every hand-written query has to remember
+    /// which half needs double quotes.
+    /// </summary>
+    private static void UseSnakeCaseNames(ModelBuilder modelBuilder)
+    {
+        foreach (var entity in modelBuilder.Model.GetEntityTypes())
+        {
+            foreach (var property in entity.GetProperties())
+            {
+                property.SetColumnName(ToSnakeCase(property.GetColumnName()));
+            }
+
+            foreach (var key in entity.GetKeys())
+            {
+                key.SetName(ToSnakeCase(key.GetName()!));
+            }
+
+            foreach (var foreignKey in entity.GetForeignKeys())
+            {
+                foreignKey.SetConstraintName(ToSnakeCase(foreignKey.GetConstraintName()!));
+            }
+
+            foreach (var index in entity.GetIndexes())
+            {
+                index.SetDatabaseName(ToSnakeCase(index.GetDatabaseName()!));
+            }
+        }
+    }
+
+    private static string ToSnakeCase(string name)
+    {
+        var builder = new StringBuilder(name.Length + 8);
+
+        for (var position = 0; position < name.Length; position++)
+        {
+            var character = name[position];
+
+            if (!char.IsUpper(character))
+            {
+                builder.Append(character);
+                continue;
+            }
+
+            // Break before a capital unless we are already inside an acronym
+            // ("IX_" must not become "i_x_"), or right after an underscore.
+            var previous = position > 0 ? name[position - 1] : '_';
+            var startsNewWord =
+                position > 0
+                && previous != '_'
+                && (!char.IsUpper(previous)
+                    || (position + 1 < name.Length && char.IsLower(name[position + 1])));
+
+            if (startsNewWord)
+            {
+                builder.Append('_');
+            }
+
+            builder.Append(char.ToLowerInvariant(character));
+        }
+
+        return builder.ToString();
     }
 }
 

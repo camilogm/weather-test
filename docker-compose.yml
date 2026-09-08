@@ -1,0 +1,65 @@
+# git clone -> make env -> docker compose up -> it works.
+#
+# No external network to create by hand, no container that starts and then sits
+# there doing nothing. Every service here actually runs the thing it is named
+# after, because a reviewer's first command has to be their last.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: weather-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-weather}
+      POSTGRES_USER: ${POSTGRES_USER:-weather}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-weather_local_dev}
+    ports:
+      - '${POSTGRES_PORT:-5432}:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      # Compose reports a container as "up" the moment it starts, which is well
+      # before Postgres accepts connections. Without this the API would race it.
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-weather} -d ${POSTGRES_DB:-weather}']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+  api:
+    build:
+      context: ./backend
+    container_name: weather-api
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      Database__Provider: Postgres
+      Database__ConnectionString: >-
+        Host=postgres;Port=5432;Database=${POSTGRES_DB:-weather};Username=${POSTGRES_USER:-weather};Password=${POSTGRES_PASSWORD:-weather_local_dev}
+      Database__MigrateOnStartup: 'true'
+      Cors__AllowedOrigins__0: 'http://localhost:${FRONTEND_PORT:-5173}'
+    ports:
+      - '${API_PORT:-8080}:8080'
+    healthcheck:
+      test: ['CMD-SHELL', 'wget --spider -q http://localhost:8080/health || exit 1']
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 20s
+
+  web:
+    build:
+      context: ./frontend
+      args:
+        # The browser runs on the host, so it must reach the API through the
+        # published host port, not through the compose network name.
+        VITE_API_BASE_URL: http://localhost:${API_PORT:-8080}
+    container_name: weather-web
+    depends_on:
+      - api
+    ports:
+      - '${FRONTEND_PORT:-5173}:80'
+
+volumes:
+  postgres-data:

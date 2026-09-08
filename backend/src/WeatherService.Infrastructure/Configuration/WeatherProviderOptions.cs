@@ -14,6 +14,10 @@ public sealed class WeatherProviderOptions
     [Required]
     public Uri BaseAddress { get; set; } = new("https://api.open-meteo.com/");
 
+    /// <summary>Geocoding lives on a different host, so it needs its own client.</summary>
+    [Required]
+    public Uri GeocodingBaseAddress { get; set; } = new("https://geocoding-api.open-meteo.com/");
+
     public ResilienceSettings Resilience { get; set; } = new();
 }
 

@@ -1,13 +1,13 @@
-namespace WeatherService.Application.Forecast;
+namespace WeatherService.Application.Model;
 
 /// <summary>
-/// Where the answer actually came from.
+/// Where an answer actually came from.
 ///
 /// This is not diagnostics trivia: it is surfaced to the client as a response
 /// header so a consumer can tell a live reading from a degraded one. A silent
 /// fallback is a lie of omission.
 /// </summary>
-public enum ForecastSource
+public enum WeatherDataSource
 {
     /// <summary>Fresh from the external provider.</summary>
     Provider,

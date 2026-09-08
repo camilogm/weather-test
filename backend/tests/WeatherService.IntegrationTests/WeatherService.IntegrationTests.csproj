@@ -12,6 +12,7 @@
     <PackageReference Include="coverlet.collector" />
     <PackageReference Include="FluentAssertions" />
     <PackageReference Include="NSubstitute" />
+    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
 
     <!-- Boots the real application in memory. -->
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />

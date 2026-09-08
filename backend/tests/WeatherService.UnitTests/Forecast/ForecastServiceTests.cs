@@ -44,7 +44,7 @@ public class ForecastServiceTests
 
         var result = await CreateSut().GetWeeklyForecastAsync(SanSalvador, CancellationToken.None);
 
-        result.Source.Should().Be(ForecastSource.Provider);
+        result.Source.Should().Be(WeatherDataSource.Provider);
         result.IsDegraded.Should().BeFalse();
         result.Forecast.Days.Should().HaveCount(7);
         result.Forecast.Location.Name.Should().Be("San Salvador");
@@ -57,7 +57,7 @@ public class ForecastServiceTests
 
         var result = await CreateSut().GetWeeklyForecastAsync(SanSalvador, CancellationToken.None);
 
-        result.Source.Should().Be(ForecastSource.Cache);
+        result.Source.Should().Be(WeatherDataSource.Cache);
         await _provider
             .DidNotReceiveWithAnyArgs()
             .GetWeeklyForecastAsync(default!, default);
@@ -89,7 +89,7 @@ public class ForecastServiceTests
 
         var result = await CreateSut().GetWeeklyForecastAsync(SanSalvador, CancellationToken.None);
 
-        result.Source.Should().Be(ForecastSource.StaleCache);
+        result.Source.Should().Be(WeatherDataSource.StaleCache);
         result.IsDegraded.Should().BeTrue();
         result.Forecast.Should().BeSameAs(stale);
     }
@@ -106,7 +106,7 @@ public class ForecastServiceTests
 
         var result = await CreateSut().GetWeeklyForecastAsync(SanSalvador, CancellationToken.None);
 
-        result.Source.Should().Be(ForecastSource.Historical);
+        result.Source.Should().Be(WeatherDataSource.Historical);
         result.IsDegraded.Should().BeTrue();
         result.Forecast.Should().BeSameAs(persisted);
     }
@@ -161,7 +161,7 @@ public class ForecastServiceTests
 
         var result = await CreateSut().GetWeeklyForecastAsync(SanSalvador, CancellationToken.None);
 
-        result.Source.Should().Be(ForecastSource.Provider);
+        result.Source.Should().Be(WeatherDataSource.Provider);
     }
 
     [Fact]

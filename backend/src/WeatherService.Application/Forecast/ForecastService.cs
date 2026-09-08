@@ -50,7 +50,7 @@ public sealed class ForecastService : IForecastService
         if (cached is not null && cached.IsFresh(_clock.GetUtcNow()))
         {
             _logger.LogDebug("Forecast cache hit for {Location}", location.Name);
-            return new ForecastResult(cached.Value, ForecastSource.Cache);
+            return new ForecastResult(cached.Value, WeatherDataSource.Cache);
         }
 
         try
@@ -65,7 +65,7 @@ public sealed class ForecastService : IForecastService
                 location.Name,
                 _provider.Name);
 
-            return new ForecastResult(forecast, ForecastSource.Provider);
+            return new ForecastResult(forecast, WeatherDataSource.Provider);
         }
         catch (WeatherProviderException providerFailure)
         {
@@ -96,7 +96,7 @@ public sealed class ForecastService : IForecastService
                 location.Name,
                 cached.StoredAt);
 
-            return new ForecastResult(cached.Value, ForecastSource.StaleCache);
+            return new ForecastResult(cached.Value, WeatherDataSource.StaleCache);
         }
 
         var persisted = await ReadHistoryQuietlyAsync(location, cancellationToken);
@@ -107,7 +107,7 @@ public sealed class ForecastService : IForecastService
                 location.Name,
                 persisted.RetrievedAt);
 
-            return new ForecastResult(persisted, ForecastSource.Historical);
+            return new ForecastResult(persisted, WeatherDataSource.Historical);
         }
 
         throw new ForecastUnavailableException(location, cause);

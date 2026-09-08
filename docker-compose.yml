@@ -39,14 +39,13 @@ services:
         Host=postgres;Port=5432;Database=${POSTGRES_DB:-weather};Username=${POSTGRES_USER:-weather};Password=${POSTGRES_PASSWORD:-weather_local_dev}
       Database__MigrateOnStartup: 'true'
       Cors__AllowedOrigins__0: 'http://localhost:${FRONTEND_PORT:-5173}'
+      # On so the API can be explored without running it in Development.
+      # A real deployment would leave this off and publish the contract elsewhere.
+      Swagger__Enabled: 'true'
     ports:
       - '${API_PORT:-8080}:8080'
-    healthcheck:
-      test: ['CMD-SHELL', 'wget --spider -q http://localhost:8080/health || exit 1']
-      interval: 10s
-      timeout: 3s
-      retries: 5
-      start_period: 20s
+    # The health check lives in the Dockerfile, so it travels with the image
+    # instead of only existing when it is started through compose.
 
   web:
     build:

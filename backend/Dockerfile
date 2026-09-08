@@ -23,6 +23,13 @@ RUN dotnet publish src/WeatherService.Api/WeatherService.Api.csproj \
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
 WORKDIR /app
 
+# The aspnet runtime image ships neither curl nor wget, so a container health
+# check has nothing to run. Added here rather than left to compose, because a
+# probe that cannot execute reports "unhealthy" forever against a working service.
+RUN apt-get update \
+    && apt-get install --yes --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY --from=build /app .
 
 # The base image ships a non-root account; there is no reason to run as root.
@@ -32,5 +39,8 @@ ENV ASPNETCORE_URLS=http://+:8080 \
     DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false
 
 EXPOSE 8080
+
+HEALTHCHECK --interval=15s --timeout=3s --start-period=30s --retries=5 \
+    CMD curl --fail --silent --show-error http://127.0.0.1:8080/health || exit 1
 
 ENTRYPOINT ["dotnet", "WeatherService.Api.dll"]

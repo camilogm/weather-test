@@ -21,7 +21,7 @@ docker compose up --build
 | --------------- | ----------------------------------------------------------- |
 | Front end       | <http://localhost:5173>                                      |
 | API             | <http://localhost:8080>                                      |
-| Swagger         | <http://localhost:8080/swagger> *(Development only)*         |
+| Swagger         | <http://localhost:8080/swagger>                              |
 | Health          | <http://localhost:8080/health>                               |
 | Postgres        | `localhost:5432`                                             |
 

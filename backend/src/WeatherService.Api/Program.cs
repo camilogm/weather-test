@@ -43,7 +43,10 @@ var app = builder.Build();
 app.UseExceptionHandler();
 app.UseSerilogRequestLogging();
 
-if (app.Environment.IsDevelopment())
+// Always on in Development; elsewhere only when asked for. The compose stack
+// asks for it so the API can be explored without rebuilding in another
+// environment — a real deployment would leave it off.
+if (app.Environment.IsDevelopment() || app.Configuration.GetValue("Swagger:Enabled", false))
 {
     app.UseSwagger();
     app.UseSwaggerUI();

@@ -24,5 +24,8 @@ COPY --from=build /app/dist /usr/share/nginx/html
 
 EXPOSE 80
 
+# 127.0.0.1, not localhost: /etc/hosts maps localhost to both 127.0.0.1 and ::1,
+# busybox wget tries the IPv6 address first, and nginx listens on IPv4 only — so
+# "localhost" here is a connection refused against a perfectly healthy server.
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s \
-    CMD wget --spider -q http://localhost/ || exit 1
+    CMD wget --spider -q http://127.0.0.1/ || exit 1

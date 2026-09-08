@@ -1,0 +1,58 @@
+@import 'tailwindcss';
+
+/*
+  One palette, defined once, flipped by the viewer's OS preference.
+  Every colour below is a token so a component never hardcodes a hex value.
+*/
+@theme {
+  --font-sans:
+    'Inter var', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
+  --color-canvas: oklch(98.4% 0.005 250);
+  --color-surface: oklch(100% 0 0);
+  --color-surface-muted: oklch(96.5% 0.008 250);
+  --color-line: oklch(90% 0.012 250);
+  --color-ink: oklch(24% 0.02 265);
+  --color-ink-muted: oklch(52% 0.018 265);
+  --color-accent: oklch(58% 0.16 250);
+  --color-warm: oklch(70% 0.16 55);
+  --color-cool: oklch(72% 0.11 235);
+  --color-warning: oklch(72% 0.15 75);
+  --color-warning-ink: oklch(38% 0.1 75);
+  --color-danger: oklch(58% 0.19 25);
+}
+
+@media (prefers-color-scheme: dark) {
+  @theme {
+    --color-canvas: oklch(19% 0.02 265);
+    --color-surface: oklch(24% 0.022 265);
+    --color-surface-muted: oklch(28% 0.024 265);
+    --color-line: oklch(34% 0.025 265);
+    --color-ink: oklch(96% 0.008 250);
+    --color-ink-muted: oklch(72% 0.02 260);
+    --color-accent: oklch(72% 0.14 250);
+    --color-warm: oklch(75% 0.15 55);
+    --color-cool: oklch(76% 0.1 235);
+    --color-warning: oklch(78% 0.14 75);
+    --color-warning-ink: oklch(88% 0.1 80);
+    --color-danger: oklch(70% 0.17 25);
+  }
+}
+
+body {
+  background-color: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Respect people who have asked the OS to stop moving things. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

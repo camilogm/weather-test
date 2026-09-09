@@ -226,6 +226,29 @@ That claim is tested rather than asserted: `CircuitBreakerTests` drives a real
 WireMock server into failure and then checks that once the circuit is open,
 **no further request reaches the network at all**.
 
+#### The numbers have to add up
+
+Two arithmetic constraints tie these settings together, and both are easy to
+break by editing one value in isolation.
+
+**Every attempt has to fit inside the total timeout.** Three attempts of 3s plus
+1.5s of backoff is 10.5s, comfortably inside 12s. Widen the attempt timeout to
+5s and the sum becomes 16.5s against a 15s ceiling — the third attempt starts
+knowing it will be guillotined, and the caller waits for it anyway.
+
+**The breaker's throughput gate has to be reachable.** `MinimumThroughput`
+gates the failure ratio: below it the ratio is never evaluated. A cut-short
+attempt is a cancellation rather than a failure, and Polly does not record
+those — so an over-long budget both wastes time and starves the breaker of the
+evidence it needs. With the numbers above a hung upstream produces six recorded
+failures inside the 30s window against a gate of five, and the circuit opens.
+With the 5s/15s pair it produced four, and under sequential traffic the breaker
+never opened at all.
+
+`ResilienceSettingsTests` holds both sums, because observing them for real would
+cost half a minute of wall clock per run — which is exactly why nobody checks
+them by hand.
+
 Forecast and geocoding use separate HTTP clients, and therefore separate breaker
 state. A geocoder having a bad day must not cut off forecasts that are answering
 perfectly well.
@@ -313,7 +336,7 @@ make test-unit         # fast, no I/O
 make test-integration  # real SQLite, real HTTP, real ASP.NET pipeline
 ```
 
-92 tests, in two layers that do genuinely different jobs.
+95 tests, in two layers that do genuinely different jobs.
 
 **Unit tests** cover the use cases through substituted ports. No network, no
 database, no `Thread.Sleep` — `FakeTimeProvider` moves the clock, so testing a
@@ -323,7 +346,11 @@ database, no `Thread.Sleep` — `FakeTimeProvider` moves the clock, so testing a
 
 - `EfForecastHistoryTests` — a real SQLite engine, schema built by running the
   migrations, so a broken migration fails here rather than on your machine.
-- `CircuitBreakerTests` — a real WireMock HTTP server told to misbehave.
+- `CircuitBreakerTests` — a real WireMock HTTP server told to misbehave, at
+  production's retry count and throughput gate so retries are shown counting
+  toward tripping it.
+- `ResilienceSettingsTests` — the two arithmetic constraints the resilience
+  numbers have to satisfy, checked against the production defaults.
 - `RateLimitingTests` — limits turned down to single digits, checking the edge:
   the `429`, its `Retry-After`, its problem document, and that search and
   forecast do not share a budget.
@@ -416,6 +443,8 @@ Everything is overridable through `appsettings.json`, environment variables
 | `Database__ConnectionString`               | local Postgres                  |
 | `Database__MigrateOnStartup`               | `true`                          |
 | `WeatherProvider__BaseAddress`             | `https://api.open-meteo.com/`   |
+| `WeatherProvider__Resilience__AttemptTimeout` | `00:00:03`                   |
+| `WeatherProvider__Resilience__TotalTimeout`| `00:00:12`                      |
 | `WeatherProvider__Resilience__MaxRetries`  | `2`                             |
 | `WeatherProvider__Resilience__FailureRatio`| `0.5`                           |
 | `WeatherProvider__Resilience__MinimumThroughput` | `5`                       |

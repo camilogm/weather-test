@@ -117,6 +117,55 @@ public sealed class CircuitBreakerTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Counts_retries_toward_the_breaker_at_the_configured_ratios()
+    {
+        // The other breaker tests switch retries off so request counts map onto
+        // attempts, which also means neither of them exercises the reason the
+        // breaker sits INSIDE the retry: retries have to count toward tripping
+        // it. Put it outside and one logical call hammers a dying service three
+        // times without the breaker ever noticing.
+        //
+        // So this one keeps production's retry count and throughput gate and
+        // scales only the clock. The relationship between those two numbers is
+        // what a misconfiguration gets wrong; the wall-clock timings are not.
+        var production = new ResilienceSettings();
+
+        GivenTheUpstreamAlwaysFails();
+        var provider = CreateProvider(resilience =>
+        {
+            resilience.MaxRetries = production.MaxRetries;
+            resilience.MinimumThroughput = production.MinimumThroughput;
+            resilience.FailureRatio = production.FailureRatio;
+            resilience.SamplingDuration = production.SamplingDuration;
+            resilience.BreakDuration = TimeSpan.FromMinutes(1);
+
+            resilience.RetryDelay = TimeSpan.FromMilliseconds(10);
+            resilience.AttemptTimeout = TimeSpan.FromSeconds(1);
+            resilience.TotalTimeout = TimeSpan.FromSeconds(5);
+        });
+
+        // Three attempts each, so two calls clear a gate of five.
+        await ExpectProviderFailure(provider);
+        await ExpectProviderFailure(provider);
+
+        var reachedNetwork = _upstream.LogEntries.Count();
+        reachedNetwork
+            .Should()
+            .BeGreaterThanOrEqualTo(
+                production.MinimumThroughput,
+                "the gate is counted in attempts, so retries are what get it there");
+
+        await ExpectProviderFailure(provider);
+        await ExpectProviderFailure(provider);
+
+        _upstream
+            .LogEntries.Should()
+            .HaveCount(
+                reachedNetwork,
+                "the circuit is open, so these fail without leaving the process");
+    }
+
+    [Fact]
     public async Task Rides_out_a_transient_failure_with_a_retry()
     {
         _upstream

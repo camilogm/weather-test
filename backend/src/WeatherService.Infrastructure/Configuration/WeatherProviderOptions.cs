@@ -32,13 +32,27 @@ public sealed class WeatherProviderOptions
 /// </summary>
 public sealed class ResilienceSettings
 {
-    /// <summary>Ceiling for a single attempt, retries excluded.</summary>
+    /// <summary>
+    /// Ceiling for a single attempt, retries excluded.
+    ///
+    /// Every attempt has to fit inside <see cref="TotalTimeout"/> alongside the
+    /// backoff between them, or the last one is cut short every single time —
+    /// latency spent on a request that cannot finish, and one the breaker never
+    /// gets to count. ResilienceSettingsTests holds that sum to the budget.
+    /// </summary>
     [Range(typeof(TimeSpan), "00:00:00.100", "00:01:00")]
-    public TimeSpan AttemptTimeout { get; set; } = TimeSpan.FromSeconds(5);
+    public TimeSpan AttemptTimeout { get; set; } = TimeSpan.FromSeconds(3);
 
-    /// <summary>Ceiling for the whole operation, retries included.</summary>
+    /// <summary>
+    /// Ceiling for the whole operation, retries included.
+    ///
+    /// Kept deliberately short. This service degrades to a fresh cache, a stale
+    /// cache and then stored history, so there is rarely nothing to serve —
+    /// which makes every second spent retrying a second stolen from an answer
+    /// already in memory. A long budget is for a caller with no plan B.
+    /// </summary>
     [Range(typeof(TimeSpan), "00:00:00.100", "00:05:00")]
-    public TimeSpan TotalTimeout { get; set; } = TimeSpan.FromSeconds(15);
+    public TimeSpan TotalTimeout { get; set; } = TimeSpan.FromSeconds(12);
 
     /// <summary>Zero disables retrying entirely.</summary>
     [Range(0, 10)]
@@ -54,6 +68,10 @@ public sealed class ResilienceSettings
     /// Calls required in the window before the ratio is even considered.
     /// Without this, a single failure during a quiet minute is a 100% failure
     /// rate and would open the circuit on no evidence at all.
+    ///
+    /// It is a gate, so it has to be reachable: the attempts a hung upstream
+    /// produces inside <see cref="SamplingDuration"/> must clear it, or the
+    /// ratio is never evaluated and the breaker never opens.
     /// </summary>
     [Range(2, 1000)]
     public int MinimumThroughput { get; set; } = 5;

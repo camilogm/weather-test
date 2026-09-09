@@ -3,7 +3,7 @@ import { useId, useState } from 'react'
 import type { LocationSuggestion, SelectedLocation } from '../api/types'
 import { MIN_QUERY_LENGTH } from '../api/weather'
 import { useCombobox } from '../hooks/useCombobox'
-import { useLocationSearch } from '../hooks/useLocationSearch'
+import { useLocationSearch, type SearchStatus } from '../hooks/useLocationSearch'
 import { plural, t } from '../i18n'
 
 interface Props {
@@ -51,21 +51,8 @@ export function CityPicker({ selected, onSelect }: Props) {
 
   const showPopup = isOpen && trimmed.length >= MIN_QUERY_LENGTH
 
-  // What a screen reader hears when the list changes under it. "Searching" is
-  // deliberately absent: it would fire on every keystroke, and a live region
-  // that talks over itself is worse than one that waits for something to say.
-  const announcement = !showPopup
-    ? ''
-    : status === 'error'
-      ? t('picker.failed')
-      : status === 'ready'
-        ? results.length === 0
-          ? t('picker.noResults')
-          : plural(
-              { one: 'picker.resultsCountOne', many: 'picker.resultsCountMany' },
-              results.length,
-            )
-        : ''
+  const announcement = showPopup ? announce(status, results.length) : ''
+  const message = showPopup ? messageFor(status, results.length) : null
 
   return (
     <div ref={containerRef} className="relative w-full sm:w-72">
@@ -98,19 +85,22 @@ export function CityPicker({ selected, onSelect }: Props) {
       </span>
 
       {showPopup && (
-        <ul
-          id={listboxId}
-          role="listbox"
-          aria-label={t('picker.label')}
-          className="absolute z-10 mt-1 max-h-72 w-full overflow-y-auto border border-ink bg-surface shadow-[0.25rem_0.25rem_0_0_var(--color-line)]"
-        >
-          {status === 'searching' && <Message text={t('picker.searching')} />}
-          {status === 'error' && <Message text={t('picker.failed')} />}
-          {status === 'ready' && results.length === 0 && (
-            <Message text={t('picker.noResults')} />
-          )}
+        <div className="absolute z-10 mt-1 w-full border border-ink bg-surface shadow-[0.25rem_0.25rem_0_0_var(--color-line)]">
+          {/*
+            Outside the listbox, not a presentational row inside it. A listbox
+            may own only options and groups, and prose about what the search is
+            doing is neither — so it lives beside the list rather than
+            pretending to be part of it.
+          */}
+          {message !== null && <p className="px-3 py-2 text-sm text-ink-muted">{message}</p>}
 
-          {results.map((suggestion, index) => (
+          <ul
+            id={listboxId}
+            role="listbox"
+            aria-label={t('picker.label')}
+            className="max-h-72 overflow-y-auto"
+          >
+            {results.map((suggestion, index) => (
             <li
               key={`${suggestion.name}-${suggestion.latitude}-${suggestion.longitude}`}
               id={optionId(index)}
@@ -125,36 +115,58 @@ export function CityPicker({ selected, onSelect }: Props) {
                 index === activeIndex ? 'bg-ink text-canvas' : '',
               ].join(' ')}
             >
-              <span className="block font-medium">{suggestion.name}</span>
-              <span
-                className={[
-                  'block font-mono text-xs',
-                  index === activeIndex ? 'text-canvas/70' : 'text-ink-muted',
-                ].join(' ')}
-              >
-                {describe(suggestion)}
-              </span>
-            </li>
-          ))}
-        </ul>
+                <span className="block font-medium">{suggestion.name}</span>
+                <span
+                  className={[
+                    'block font-mono text-xs',
+                    index === activeIndex ? 'text-canvas/70' : 'text-ink-muted',
+                  ].join(' ')}
+                >
+                  {describe(suggestion)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
     </div>
   )
 }
 
 /**
- * A row of prose inside the list — searching, failed, nothing found.
+ * What a screen reader hears when the list changes under it.
  *
- * Marked presentational because a listbox may only own options and groups, and
- * a status message is neither. Its text still reaches assistive technology,
- * through the live region above rather than as something choosable.
+ * "Searching" is deliberately absent: it would fire on every keystroke, and a
+ * live region that talks over itself is worse than one that waits until it has
+ * something to say.
  */
-function Message({ text }: { text: string }) {
-  return (
-    <li role="presentation" className="px-3 py-2 text-sm text-ink-muted">
-      {text}
-    </li>
-  )
+function announce(status: SearchStatus, count: number): string {
+  if (status === 'error') {
+    return t('picker.failed')
+  }
+
+  if (status !== 'ready') {
+    return ''
+  }
+
+  if (count === 0) {
+    return t('picker.noResults')
+  }
+
+  return plural({ one: 'picker.resultsCountOne', many: 'picker.resultsCountMany' }, count)
+}
+
+/** The same news, written down for whoever is looking at the list. */
+function messageFor(status: SearchStatus, count: number): string | null {
+  if (status === 'searching') {
+    return t('picker.searching')
+  }
+
+  if (status === 'error') {
+    return t('picker.failed')
+  }
+
+  return status === 'ready' && count === 0 ? t('picker.noResults') : null
 }
 
 /** "San Salvador · El Salvador" — whichever of the two parts came back. */

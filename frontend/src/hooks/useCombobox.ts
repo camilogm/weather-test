@@ -96,12 +96,9 @@ export function useCombobox<T>({ items, term, onChoose }: Params<T>) {
     event.preventDefault()
     setIsOpen(true)
 
-    // Wraps at both ends, so holding a key never dead-ends on a boundary.
     const step = event.key === 'ArrowDown' ? 1 : -1
-    const next = activeIndex + step
-    const wrapped = next < 0 ? items.length - 1 : next >= items.length ? 0 : next
 
-    setActive({ term, index: wrapped })
+    setActive({ term, index: wrap(activeIndex + step, items.length) })
   }
 
   return {
@@ -134,4 +131,18 @@ export function useCombobox<T>({ items, term, onChoose }: Params<T>) {
       onPointerEnter: () => setActive({ term, index }),
     }),
   }
+}
+
+/**
+ * Wraps at both ends, so holding a key never dead-ends on a boundary.
+ *
+ * Not a modulo: from nothing highlighted, index -1, an upward move belongs at
+ * the bottom of the list rather than one short of it.
+ */
+function wrap(index: number, length: number): number {
+  if (index < 0) {
+    return length - 1
+  }
+
+  return index >= length ? 0 : index
 }

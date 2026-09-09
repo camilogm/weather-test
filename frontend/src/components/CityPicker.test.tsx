@@ -103,6 +103,18 @@ describe('CityPicker', () => {
     expect(screen.getAllByRole('option')[2]?.getAttribute('aria-selected')).toBe('true')
   })
 
+  it('starts from the last option when the first move is upward', async () => {
+    // Nothing highlighted yet and ArrowUp pressed: the cursor belongs at the
+    // bottom of the list, not one short of it.
+    const user = aUser()
+    renderPicker()
+    await searchFor(user, 'San')
+
+    await user.keyboard('{ArrowUp}')
+
+    expect(screen.getAllByRole('option')[2]?.getAttribute('aria-selected')).toBe('true')
+  })
+
   it('chooses the highlighted option with Enter, and never leaves the text field', async () => {
     const user = aUser()
     renderPicker()

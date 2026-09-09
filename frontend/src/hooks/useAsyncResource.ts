@@ -89,9 +89,7 @@ export function useAsyncResource<T>(
   }, [key, nonce, debounceMs])
 
   const isCurrent = settled !== null && settled.key === key
-
-  const status: ResourceStatus =
-    key === null ? 'idle' : !isCurrent ? 'loading' : settled.error ? 'error' : 'ready'
+  const status = statusOf(key, isCurrent ? settled : null)
 
   return {
     status,
@@ -101,4 +99,20 @@ export function useAsyncResource<T>(
     isRevalidating: isCurrent && settled.nonce !== nonce,
     revalidate: useCallback(() => setNonce((token) => token + 1), []),
   }
+}
+
+/**
+ * Nothing to ask for is idle; an answer that does not belong to the question
+ * being asked is no answer at all, and reads as still loading.
+ */
+function statusOf<T>(key: string | null, settled: Settled<T> | null): ResourceStatus {
+  if (key === null) {
+    return 'idle'
+  }
+
+  if (settled === null) {
+    return 'loading'
+  }
+
+  return settled.error ? 'error' : 'ready'
 }

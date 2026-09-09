@@ -116,6 +116,7 @@ named that" are different answers.
 | `200`  | Data available — check `provenance` to see whether it is live     |
 | `400`  | Malformed query (half a coordinate pair, latitude out of range)   |
 | `404`  | No such city                                                     |
+| `429`  | Rate limit spent; includes `Retry-After`                         |
 | `503`  | Every source exhausted; includes `Retry-After`                   |
 
 Errors are [RFC 7807] problem documents. The distinction between `503` and `500`
@@ -124,6 +125,39 @@ is fine, its upstream is not, try again*. Reporting an upstream outage as a
 `500` sends whoever is on call to read the wrong logs.
 
 [RFC 7807]: https://datatracker.ietf.org/doc/html/rfc7807
+
+### Rate limiting
+
+Putting this service between the browser and Open-Meteo buys a circuit breaker,
+a cache and real error handling in that path. The other half of that bargain is
+that the service now owns the quota — and these endpoints take no credentials,
+so one caller in a loop would spend an allowance that belongs to everybody.
+
+| Policy    | Endpoints            | Default        |
+| --------- | -------------------- | -------------- |
+| `weather` | `/weather/*`         | 60 per minute  |
+| `search`  | `/locations`         | 120 per minute |
+
+Two budgets rather than one, because the traffic shapes differ: a forecast is
+one call per city a person picks, while the picker's search fires on every
+debounced keystroke. A single number sized for search leaves the expensive
+endpoint wide open; sized for forecasts, it throttles ordinary typing.
+
+Sliding windows, not fixed. A fixed window lets a caller spend a full budget at
+`11:59:59` and another at `12:00:00` — twice the intended rate across the
+boundary, which is the exact burst this is here to stop. Nothing queues: making
+a throttled caller wait holds a connection open to tell them something a `429`
+says immediately.
+
+A rejection is an RFC 7807 document with a `Retry-After`, like every other
+failure here. The health check is deliberately outside all of it — throttling it
+would make a healthy container flap.
+
+> **Behind a proxy**, callers are partitioned by `RemoteIpAddress`, so a
+> deployment that terminates TLS elsewhere needs `ForwardedHeaders` configured
+> or every caller lands in one shared bucket. That bucket is shared rather than
+> exempt on purpose: not knowing who someone is, is a reason to be more careful,
+> not less.
 
 ---
 
@@ -279,7 +313,7 @@ make test-unit         # fast, no I/O
 make test-integration  # real SQLite, real HTTP, real ASP.NET pipeline
 ```
 
-86 tests, in two layers that do genuinely different jobs.
+92 tests, in two layers that do genuinely different jobs.
 
 **Unit tests** cover the use cases through substituted ports. No network, no
 database, no `Thread.Sleep` — `FakeTimeProvider` moves the clock, so testing a
@@ -290,6 +324,9 @@ database, no `Thread.Sleep` — `FakeTimeProvider` moves the clock, so testing a
 - `EfForecastHistoryTests` — a real SQLite engine, schema built by running the
   migrations, so a broken migration fails here rather than on your machine.
 - `CircuitBreakerTests` — a real WireMock HTTP server told to misbehave.
+- `RateLimitingTests` — limits turned down to single digits, checking the edge:
+  the `429`, its `Retry-After`, its problem document, and that search and
+  forecast do not share a budget.
 - `WeatherEndpointsTests` — the real application through `WebApplicationFactory`,
   replacing only the upstream and the clock. Real routing, model binding,
   middleware, ProblemDetails and EF stay under test.
@@ -343,7 +380,7 @@ Two things about this are worth knowing before you run it:
 
 | | Backend | Front end |
 | --- | --- | --- |
-| Lines of code | 1485 | 1090 |
+| Lines of code | 1585 | 1090 |
 | Bugs | 0 | 0 |
 | Duplication | 0.0% | 0.0% |
 | Code smells | 4 | 16 |
@@ -383,6 +420,10 @@ Everything is overridable through `appsettings.json`, environment variables
 | `WeatherProvider__Resilience__FailureRatio`| `0.5`                           |
 | `WeatherProvider__Resilience__MinimumThroughput` | `5`                       |
 | `WeatherProvider__Resilience__BreakDuration`| `00:00:15`                     |
+| `RateLimiting__Enabled`                    | `true`                          |
+| `RateLimiting__Window`                     | `00:01:00`                      |
+| `RateLimiting__WeatherPermits`             | `60`                            |
+| `RateLimiting__SearchPermits`              | `120`                           |
 | `Cors__AllowedOrigins__0`                  | `http://localhost:5173`         |
 
 Migrations run on startup for convenience here. That is not a production habit —

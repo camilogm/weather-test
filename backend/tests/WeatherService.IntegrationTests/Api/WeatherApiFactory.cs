@@ -1,3 +1,4 @@
+using System.Globalization;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.Sqlite;
@@ -5,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Time.Testing;
+using WeatherService.Api.RateLimiting;
 using WeatherService.Application.Model;
 using WeatherService.Application.Ports;
 using WeatherService.Infrastructure.Persistence;
@@ -28,6 +30,14 @@ public sealed class WeatherApiFactory : WebApplicationFactory<Program>, IAsyncLi
     public FakeLocationResolver Locations { get; } = new();
 
     public FakeTimeProvider Clock { get; } = new(new DateTimeOffset(2026, 9, 7, 12, 0, 0, TimeSpan.Zero));
+
+    /// <summary>
+    /// Off unless a test says otherwise. A suite that is not about throttling
+    /// should not have to count its own requests, and one that shares a class
+    /// fixture would otherwise fail depending on how many tests ran first.
+    /// Mutate this before the host is built.
+    /// </summary>
+    public RateLimitOptions RateLimits { get; } = new() { Enabled = false };
 
     public WeatherApiFactory()
     {
@@ -67,6 +77,15 @@ public sealed class WeatherApiFactory : WebApplicationFactory<Program>, IAsyncLi
         // still registering services — early enough to pick the SQLite context.
         builder.UseSetting("Database:Provider", "Sqlite");
         builder.UseSetting("Database:MigrateOnStartup", "false");
+
+        builder.UseSetting("RateLimiting:Enabled", RateLimits.Enabled ? "true" : "false");
+        builder.UseSetting("RateLimiting:Window", RateLimits.Window.ToString());
+        builder.UseSetting(
+            "RateLimiting:WeatherPermits",
+            RateLimits.WeatherPermits.ToString(CultureInfo.InvariantCulture));
+        builder.UseSetting(
+            "RateLimiting:SearchPermits",
+            RateLimits.SearchPermits.ToString(CultureInfo.InvariantCulture));
 
         builder.ConfigureServices(services =>
         {

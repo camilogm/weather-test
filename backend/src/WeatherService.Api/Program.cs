@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 using WeatherService.Api.Diagnostics;
+using WeatherService.Api.RateLimiting;
 using WeatherService.Infrastructure;
 using WeatherService.Infrastructure.Configuration;
 using WeatherService.Infrastructure.Persistence;
@@ -12,6 +13,8 @@ builder.Host.UseSerilog(
         configuration.ReadFrom.Configuration(context.Configuration).ReadFrom.Services(services));
 
 builder.Services.AddWeatherInfrastructure(builder.Configuration);
+
+builder.Services.AddWeatherRateLimiting(builder.Configuration);
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -53,6 +56,7 @@ if (app.Environment.IsDevelopment() || app.Configuration.GetValue("Swagger:Enabl
 }
 
 app.UseCors();
+app.UseRateLimiter();
 app.MapControllers();
 
 app.MapGet("/health", () => Results.Ok(new { status = "ok" })).WithTags("Diagnostics");

@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using WeatherService.Api.Contracts;
+using WeatherService.Api.RateLimiting;
 using WeatherService.Application.Current;
 using WeatherService.Application.Forecast;
 using WeatherService.Application.Model;
@@ -10,6 +12,7 @@ namespace WeatherService.Api.Controllers;
 [ApiController]
 [Route("weather")]
 [Produces("application/json")]
+[EnableRateLimiting(RateLimitPolicies.Weather)]
 public sealed class WeatherController : ControllerBase
 {
     /// <summary>What the front end asks for when it asks for nothing.</summary>
@@ -34,6 +37,7 @@ public sealed class WeatherController : ControllerBase
     [ProducesResponseType<CurrentWeatherResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status429TooManyRequests)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status503ServiceUnavailable)]
     public async Task<ActionResult<CurrentWeatherResponse>> GetCurrent(
         [FromQuery] WeatherQuery query,
@@ -62,6 +66,7 @@ public sealed class WeatherController : ControllerBase
     [ProducesResponseType<WeeklyForecastResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status429TooManyRequests)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status503ServiceUnavailable)]
     public async Task<ActionResult<WeeklyForecastResponse>> GetForecast(
         [FromQuery] WeatherQuery query,

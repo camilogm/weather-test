@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using WeatherService.Api.Contracts;
+using WeatherService.Api.RateLimiting;
 using WeatherService.Application.Ports;
 
 namespace WeatherService.Api.Controllers;
@@ -15,6 +17,7 @@ namespace WeatherService.Api.Controllers;
 [ApiController]
 [Route("locations")]
 [Produces("application/json")]
+[EnableRateLimiting(RateLimitPolicies.Search)]
 public sealed class LocationsController : ControllerBase
 {
     private readonly ILocationResolver _locations;
@@ -25,6 +28,7 @@ public sealed class LocationsController : ControllerBase
     [HttpGet]
     [ProducesResponseType<LocationSearchResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status429TooManyRequests)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status503ServiceUnavailable)]
     public async Task<ActionResult<LocationSearchResponse>> Search(
         [FromQuery] LocationSearchQuery search,

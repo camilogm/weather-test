@@ -23,11 +23,18 @@ public sealed class WeatherApiFactory : WebApplicationFactory<Program>, IAsyncLi
 {
     private readonly SqliteConnection _connection = new("DataSource=:memory:");
 
-    public FakeWeatherProvider Provider { get; } = new();
+    public FakeWeatherProvider Provider { get; }
 
     public FakeLocationResolver Locations { get; } = new();
 
     public FakeTimeProvider Clock { get; } = new(new DateTimeOffset(2026, 9, 7, 12, 0, 0, TimeSpan.Zero));
+
+    public WeatherApiFactory()
+    {
+        // Wired here rather than in a property initialiser: those run in
+        // declaration order, so Clock would still be null.
+        Provider = new FakeWeatherProvider { Clock = Clock };
+    }
 
     public async Task InitializeAsync()
     {
@@ -82,6 +89,15 @@ public sealed class WeatherApiFactory : WebApplicationFactory<Program>, IAsyncLi
 /// <summary>An upstream that can be told to answer, or to be down.</summary>
 public sealed class FakeWeatherProvider : IWeatherProvider
 {
+    /// <summary>
+    /// The same frozen clock the application runs on.
+    ///
+    /// Stamping DateTimeOffset.UtcNow here instead would put wall-clock time on
+    /// the one field the history read measures against, which is how a suite
+    /// starts failing on a Tuesday for reasons no one can reproduce.
+    /// </summary>
+    public TimeProvider Clock { get; set; } = TimeProvider.System;
+
     public string Name => "fake";
 
     public bool IsDown { get; set; }
@@ -109,7 +125,7 @@ public sealed class FakeWeatherProvider : IWeatherProvider
                 WeatherCondition.PartlyCloudy))
             .ToArray();
 
-        return Task.FromResult(new WeeklyForecast(location, days, DateTimeOffset.UtcNow));
+        return Task.FromResult(new WeeklyForecast(location, days, Clock.GetUtcNow()));
     }
 
     public Task<CurrentWeather> GetCurrentWeatherAsync(
@@ -129,7 +145,7 @@ public sealed class FakeWeatherProvider : IWeatherProvider
                 11.2,
                 74,
                 WeatherCondition.PartlyCloudy,
-                DateTimeOffset.UtcNow));
+                Clock.GetUtcNow()));
     }
 }
 

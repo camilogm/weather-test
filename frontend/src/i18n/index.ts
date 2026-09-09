@@ -62,6 +62,19 @@ export function t(key: CopyKey, values?: CopyValues): string {
 }
 
 /**
+ * Picks between a singular and a plural wording for a count.
+ *
+ * Intl decides which category the number falls into rather than a `count === 1`
+ * in a component, for the same reason LOCALE is written out elsewhere: the rule
+ * belongs to the language. Spanish only has the two, but a locale added later
+ * may have more, and the call sites will not have to learn about it.
+ */
+export function plural(forms: { one: CopyKey; many: CopyKey }, count: number): string {
+  const category = new Intl.PluralRules(LOCALE).select(count)
+  return t(category === 'one' ? forms.one : forms.many, { count })
+}
+
+/**
  * Translates a value that only exists at runtime — a condition name straight off
  * the API. An unrecognised one falls back to what the server sent, which is
  * unpolished but readable, rather than to an empty string or a raw key.

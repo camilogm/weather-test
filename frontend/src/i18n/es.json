@@ -16,7 +16,8 @@
     "searching": "Buscando…",
     "noResults": "No encontramos ninguna ciudad con ese nombre",
     "failed": "No se pudo buscar en este momento",
-    "resultsCount": "{count} ciudades encontradas",
+    "resultsCountOne": "{count} ciudad encontrada",
+    "resultsCountMany": "{count} ciudades encontradas",
     "refresh": "Actualizar el pronóstico"
   },
 

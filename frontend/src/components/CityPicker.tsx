@@ -3,7 +3,7 @@ import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react'
 import type { LocationSuggestion, SelectedLocation } from '../api/types'
 import { MIN_QUERY_LENGTH } from '../api/weather'
 import { useLocationSearch } from '../hooks/useLocationSearch'
-import { t } from '../i18n'
+import { plural, t } from '../i18n'
 
 interface Props {
   selected: SelectedLocation
@@ -129,6 +129,22 @@ export function CityPicker({ selected, onSelect }: Props) {
 
   const showPopup = isOpen && trimmed.length >= MIN_QUERY_LENGTH
 
+  // What a screen reader hears when the list changes under it. "Searching" is
+  // deliberately absent: it would fire on every keystroke, and a live region
+  // that talks over itself is worse than one that waits for something to say.
+  const announcement = !showPopup
+    ? ''
+    : status === 'error'
+      ? t('picker.failed')
+      : status === 'ready'
+        ? results.length === 0
+          ? t('picker.noResults')
+          : plural(
+              { one: 'picker.resultsCountOne', many: 'picker.resultsCountMany' },
+              results.length,
+            )
+        : ''
+
   return (
     <div ref={containerRef} className="relative w-full sm:w-72">
       <label htmlFor={`${listboxId}-input`} className="sr-only">
@@ -162,11 +178,9 @@ export function CityPicker({ selected, onSelect }: Props) {
         className="h-11 w-full border border-ink bg-surface px-3 text-sm placeholder:text-ink-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
       />
 
-      {/* Screen readers are told how many options appeared; sighted users see them. */}
+      {/* Screen readers are told what happened; sighted users can see it. */}
       <span aria-live="polite" className="sr-only">
-        {showPopup && status === 'ready'
-          ? t('picker.resultsCount', { count: results.length })
-          : ''}
+        {announcement}
       </span>
 
       {showPopup && (
@@ -223,8 +237,19 @@ export function CityPicker({ selected, onSelect }: Props) {
   )
 }
 
+/**
+ * A row of prose inside the list — searching, failed, nothing found.
+ *
+ * Marked presentational because a listbox may only own options and groups, and
+ * a status message is neither. Its text still reaches assistive technology,
+ * through the live region above rather than as something choosable.
+ */
 function Message({ text }: { text: string }) {
-  return <li className="px-3 py-2 text-sm text-ink-muted">{text}</li>
+  return (
+    <li role="presentation" className="px-3 py-2 text-sm text-ink-muted">
+      {text}
+    </li>
+  )
 }
 
 /** "San Salvador · El Salvador" — whichever of the two parts came back. */

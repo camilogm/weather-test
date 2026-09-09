@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 
@@ -210,6 +210,56 @@ describe('CityPicker', () => {
     // Widen it back to a term whose answers are already known.
     await user.keyboard('{Backspace}{Backspace}{Backspace}{Backspace}')
     expect(pointsAtSomethingReal()).toBe(true)
+  })
+
+  it('announces how many cities were found, in the right number', async () => {
+    // "1 ciudades encontradas" is what a screen reader used to read out. The
+    // count is the whole content of the announcement, so getting its grammar
+    // wrong is getting the announcement wrong.
+    const user = aUser()
+    search.mockResolvedValue([CITIES[0]!])
+    const { container } = renderPicker()
+
+    await searchFor(user, 'San')
+
+    const announcement = container.querySelector('[aria-live]')
+    expect(announcement?.textContent).toBe('1 ciudad encontrada')
+  })
+
+  it('announces a search that failed', async () => {
+    // The live region only ever spoke on success, so "no se pudo buscar" never
+    // reached anyone who could not see the list.
+    const user = aUser()
+    search.mockRejectedValue(new Error('the geocoder is down'))
+    const { container } = renderPicker()
+
+    await user.type(screen.getByRole('combobox'), 'San')
+
+    await waitFor(() =>
+      expect(container.querySelector('[aria-live]')?.textContent).toBe(
+        'No se pudo buscar en este momento',
+      ),
+    )
+  })
+
+  it('does not pass off its status rows as choices', async () => {
+    // A listbox may only own options and groups. A bare row of prose inside one
+    // is not a thing that can be chosen, and must not be counted as one.
+    const user = aUser()
+    search.mockResolvedValue([])
+    const { container } = renderPicker()
+
+    await user.type(screen.getByRole('combobox'), 'San')
+    await waitFor(() =>
+      expect(container.querySelector('[aria-live]')?.textContent).toBe(
+        'No encontramos ninguna ciudad con ese nombre',
+      ),
+    )
+
+    // Not an option, and not a list item either: inside a listbox those are the
+    // only roles a child may carry, so a row of prose has to opt out of both.
+    expect(screen.queryAllByRole('option')).toHaveLength(0)
+    expect(screen.queryAllByRole('listitem')).toHaveLength(0)
   })
 
   it('asks for nothing until the term is worth searching for', async () => {

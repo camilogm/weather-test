@@ -1,7 +1,8 @@
-import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react'
+import { useId, useState } from 'react'
 
 import type { LocationSuggestion, SelectedLocation } from '../api/types'
 import { MIN_QUERY_LENGTH } from '../api/weather'
+import { useCombobox } from '../hooks/useCombobox'
 import { useLocationSearch } from '../hooks/useLocationSearch'
 import { plural, t } from '../i18n'
 
@@ -22,110 +23,31 @@ interface Props {
  * San Salvador de Jujuy, and the region and country lines resolve that before
  * the request is made rather than after the wrong forecast arrives.
  *
- * Built to the ARIA combobox pattern — the input owns the listbox, arrow keys
- * move a virtual cursor via aria-activedescendant, and focus never leaves the
- * text field.
+ * The keyboard and focus rules of the ARIA combobox pattern live in
+ * useCombobox; what is left here is what a suggestion looks like.
  */
 export function CityPicker({ selected, onSelect }: Props) {
   const [term, setTerm] = useState('')
-  const [isOpen, setIsOpen] = useState(false)
-
-  // The highlight is stored WITH the term it belongs to, and read back only
-  // when they still match. Resetting it from an effect keyed on `results`
-  // looked equivalent and was not: a new array arrives on every render, so any
-  // unrelated re-render would silently clear whatever was highlighted.
-  const [active, setActive] = useState({ term: '', index: -1 })
-
   const { status, results } = useLocationSearch(term)
 
   const trimmed = term.trim()
 
-  // Clamped against what is actually rendered. The remembered highlight
-  // returns the moment the term matches again — which happens on a deleted and
-  // retyped letter, while the replacement results are still in flight — and
-  // aria-activedescendant would then name an element that is not on the page.
-  const activeIndex =
-    active.term === trimmed && active.index < results.length ? active.index : -1
+  const { isOpen, open, activeIndex, containerRef, inputHandlers, optionHandlers } = useCombobox({
+    items: results,
+    term: trimmed,
+    onChoose: (suggestion: LocationSuggestion) => {
+      onSelect({
+        name: suggestion.name,
+        latitude: suggestion.latitude,
+        longitude: suggestion.longitude,
+      })
+
+      setTerm('')
+    },
+  })
 
   const listboxId = useId()
   const optionId = (index: number) => `${listboxId}-option-${index}`
-  const containerRef = useRef<HTMLDivElement>(null)
-  const optionRefs = useRef<(HTMLLIElement | null)[]>([])
-
-  // The list caps at 288px and the search returns up to eight suggestions, so
-  // the virtual cursor can walk off the bottom of what is visible. This is the
-  // one place in the component where touching the DOM directly is the right
-  // answer: there is no declarative way to ask a scroll container to move.
-  useEffect(() => {
-    if (activeIndex < 0) {
-      return
-    }
-
-    optionRefs.current[activeIndex]?.scrollIntoView({ block: 'nearest' })
-  }, [activeIndex])
-
-  // A click anywhere else means the person moved on without choosing.
-  useEffect(() => {
-    if (!isOpen) {
-      return
-    }
-
-    function onPointerDown(event: PointerEvent) {
-      if (!containerRef.current?.contains(event.target as Node)) {
-        setIsOpen(false)
-      }
-    }
-
-    document.addEventListener('pointerdown', onPointerDown)
-    return () => document.removeEventListener('pointerdown', onPointerDown)
-  }, [isOpen])
-
-  function choose(suggestion: LocationSuggestion) {
-    onSelect({
-      name: suggestion.name,
-      latitude: suggestion.latitude,
-      longitude: suggestion.longitude,
-    })
-
-    setTerm('')
-    setIsOpen(false)
-    setActive({ term: '', index: -1 })
-  }
-
-  function onKeyDown(event: KeyboardEvent<HTMLInputElement>) {
-    if (event.key === 'Escape') {
-      setIsOpen(false)
-      setActive({ term: '', index: -1 })
-      return
-    }
-
-    if (event.key === 'Enter') {
-      const highlighted = results[activeIndex]
-      if (isOpen && highlighted) {
-        event.preventDefault()
-        choose(highlighted)
-      }
-      return
-    }
-
-    if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') {
-      return
-    }
-
-    if (results.length === 0) {
-      return
-    }
-
-    event.preventDefault()
-    setIsOpen(true)
-
-    // Wraps at both ends, so holding a key never dead-ends on a boundary.
-    const step = event.key === 'ArrowDown' ? 1 : -1
-    const next = activeIndex + step
-    const wrapped = next < 0 ? results.length - 1 : next >= results.length ? 0 : next
-
-    setActive({ term: trimmed, index: wrapped })
-  }
 
   const showPopup = isOpen && trimmed.length >= MIN_QUERY_LENGTH
 
@@ -164,17 +86,9 @@ export function CityPicker({ selected, onSelect }: Props) {
         placeholder={selected.name}
         onChange={(event) => {
           setTerm(event.target.value)
-          setIsOpen(true)
+          open()
         }}
-        onFocus={() => setIsOpen(true)}
-        // Pointerdown outside only catches the mouse. Without this, tabbing to
-        // the next control leaves the list floating over the page.
-        onBlur={(event) => {
-          if (!containerRef.current?.contains(event.relatedTarget)) {
-            setIsOpen(false)
-          }
-        }}
-        onKeyDown={onKeyDown}
+        {...inputHandlers}
         className="h-11 w-full border border-ink bg-surface px-3 text-sm placeholder:text-ink-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
       />
 
@@ -199,19 +113,10 @@ export function CityPicker({ selected, onSelect }: Props) {
           {results.map((suggestion, index) => (
             <li
               key={`${suggestion.name}-${suggestion.latitude}-${suggestion.longitude}`}
-              ref={(node) => {
-                optionRefs.current[index] = node
-              }}
               id={optionId(index)}
               role="option"
               aria-selected={index === activeIndex}
-              // pointerdown, not click: the outside-click handler would close
-              // the list on mousedown and the click would never land.
-              onPointerDown={(event) => {
-                event.preventDefault()
-                choose(suggestion)
-              }}
-              onPointerEnter={() => setActive({ term: trimmed, index })}
+              {...optionHandlers(index, suggestion)}
               // Inverted rather than tinted: ink on paper flips to paper on ink,
               // which reads as a highlight in both colour schemes without needing
               // a second token for each one.

@@ -13,7 +13,7 @@ import { ErrorState, LoadingState } from './components/StateViews'
 
 export default function App() {
   const [location, setLocation] = useState<SelectedLocation>(DEFAULT_LOCATION)
-  const { status, forecast, current, error, refresh } = useWeather(location)
+  const { status, forecast, current, error, refresh, isRefreshing } = useWeather(location)
 
   const place = forecast?.location ?? location
 
@@ -41,15 +41,26 @@ export default function App() {
         <div className="flex items-start gap-2">
           <CityPicker selected={location} onSelect={setLocation} />
 
+          {/*
+            A refresh no longer blanks the page to reload what is already on it,
+            which leaves the click with nothing to show for itself. The spinning
+            glyph is that acknowledgement, and aria-busy is the same news for
+            anyone not looking at it.
+          */}
           <button
             type="button"
             onClick={refresh}
             aria-label={t('picker.refresh')}
+            aria-busy={isRefreshing}
             // size-11 is 44px: it lines the button up with the input beside it
             // and clears the minimum touch target in the same stroke.
             className="flex size-11 shrink-0 cursor-pointer items-center justify-center border border-ink bg-surface transition-colors hover:bg-ink hover:text-canvas focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           >
-            <svg viewBox="0 0 20 20" className="size-4" aria-hidden="true">
+            <svg
+              viewBox="0 0 20 20"
+              className={['size-4', isRefreshing ? 'motion-safe:animate-spin' : ''].join(' ')}
+              aria-hidden="true"
+            >
               <path
                 d="M16.5 10a6.5 6.5 0 1 1-1.9-4.6"
                 fill="none"

@@ -1,90 +1,61 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useMemo } from 'react'
 
+import { useAsyncResource } from './useAsyncResource'
 import { WeatherApiError, fetchCurrent, fetchForecast } from '../api/weather'
-import type { CurrentWeather, SelectedLocation, WeeklyForecast } from '../api/types'
+import type { SelectedLocation } from '../api/types'
 
 type Status = 'loading' | 'ready' | 'error'
-
-/** The outcome of one specific request, tagged with which request it answered. */
-interface Settled {
-  requestId: string
-  forecast: WeeklyForecast | null
-  current: CurrentWeather | null
-  error: WeatherApiError | null
-}
 
 /**
  * Loads the forecast and current conditions for a chosen place.
  *
- * `status` is DERIVED during render rather than written from inside the effect.
- * Setting "loading" in the effect would mean every change renders twice — once
- * with the previous location's data still on screen, once after the state
- * lands. Comparing the settled result's request id against the current one
- * gives the same answer in a single pass, and makes a stale response
- * structurally impossible to display: it simply does not match.
- *
- * The forecast is the page; current conditions are a bonus. So a failing
- * forecast is an error state, while failing current conditions just leave that
- * panel out — losing the extra should never blank out what people came for.
+ * The request bookkeeping — one in flight at a time, aborts on the way out, and
+ * an answer proven to belong to the place currently selected — belongs to
+ * useAsyncResource. What is left here is the part specific to weather: the
+ * forecast is the page, current conditions are a bonus, so a failing forecast
+ * is an error state while failing current conditions just leave that panel out.
+ * Losing the extra should never blank out what people came for.
  */
 export function useWeather(location: SelectedLocation) {
-  const [reloadToken, setReloadToken] = useState(0)
-  const [settled, setSettled] = useState<Settled | null>(null)
-
-  // Depends on the primitive fields rather than the object: a caller that
-  // builds `{ name, latitude, longitude }` inline would hand us a new identity
-  // on every render, and an effect keyed on that would never stop firing.
+  // Keyed on the primitive fields rather than the object: a caller that builds
+  // `{ name, latitude, longitude }` inline would hand us a new identity on
+  // every render, and a resource keyed on that would never settle.
   const { name, latitude, longitude } = location
-  const requestId = `${name}@${latitude},${longitude}#${reloadToken}`
+  const key = `${name}@${latitude},${longitude}`
 
-  const refresh = useCallback(() => setReloadToken((token) => token + 1), [])
-
-  useEffect(() => {
-    const controller = new AbortController()
+  const resource = useAsyncResource(key, async (signal) => {
     const target: SelectedLocation = { name, latitude, longitude }
-    let active = true
 
-    async function load() {
-      try {
-        const forecast = await fetchForecast(target, controller.signal)
+    // Two independent endpoints, so they go out together. Awaited in sequence
+    // the page would wait for the sum of both round trips to show either.
+    const [forecast, current] = await Promise.all([
+      fetchForecast(target, signal),
+      // Best effort: the page still works without it.
+      fetchCurrent(target, signal).catch(() => null),
+    ])
 
-        // Best effort: the page still works without it.
-        const current = await fetchCurrent(target, controller.signal).catch(() => null)
+    return { forecast, current }
+  })
 
-        if (active) {
-          setSettled({ requestId, forecast, current, error: null })
-        }
-      } catch (cause) {
-        if (!active || (cause instanceof DOMException && cause.name === 'AbortError')) {
-          return
-        }
-
-        setSettled({
-          requestId,
-          forecast: null,
-          current: null,
-          error: cause instanceof WeatherApiError ? cause : new WeatherApiError('unexpected'),
-        })
-      }
-    }
-
-    void load()
-
-    return () => {
-      active = false
-      controller.abort()
-    }
-  }, [name, latitude, longitude, requestId])
-
-  const isCurrent = settled?.requestId === requestId
-
-  const status: Status = !isCurrent || !settled ? 'loading' : settled.error ? 'error' : 'ready'
+  // Memoised so a normalised error keeps one identity across renders rather
+  // than becoming a new object every time something else re-renders.
+  const error = useMemo(() => asWeatherError(resource.error), [resource.error])
 
   return {
-    status,
-    forecast: isCurrent ? (settled?.forecast ?? null) : null,
-    current: isCurrent ? (settled?.current ?? null) : null,
-    error: isCurrent ? (settled?.error ?? null) : null,
-    refresh,
+    // There is always a place to load, so the resource is never idle.
+    status: (resource.status === 'idle' ? 'loading' : resource.status) as Status,
+    forecast: resource.data?.forecast ?? null,
+    current: resource.data?.current ?? null,
+    error,
+    refresh: resource.revalidate,
+    isRefreshing: resource.isRevalidating,
   }
+}
+
+function asWeatherError(cause: unknown): WeatherApiError | null {
+  if (cause === null || cause === undefined) {
+    return null
+  }
+
+  return cause instanceof WeatherApiError ? cause : new WeatherApiError('unexpected')
 }

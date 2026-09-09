@@ -114,6 +114,25 @@ describe('useWeather', () => {
     expect(signal?.aborted).toBe(true)
   })
 
+  it('keeps the page on screen while a refresh is in flight', async () => {
+    // Asking for fresh data must not throw away the data being refreshed. The
+    // revalidation counter is deliberately outside the request key for exactly
+    // this reason: folding it in blanks the page to load what is already there.
+    forecastOf.mockResolvedValue(aForecastFor(sanSalvador))
+
+    const { result } = renderHook(() => useWeather(sanSalvador))
+    await waitFor(() => expect(result.current.status).toBe('ready'))
+
+    const pending = deferred<WeeklyForecast>()
+    forecastOf.mockReturnValue(pending.promise)
+
+    await act(async () => result.current.refresh())
+
+    expect(result.current.status).toBe('ready')
+    expect(result.current.forecast?.location.name).toBe('San Salvador')
+    expect(result.current.isRefreshing).toBe(true)
+  })
+
   it('goes back to the network when asked to refresh', async () => {
     forecastOf.mockResolvedValue(aForecastFor(sanSalvador))
 

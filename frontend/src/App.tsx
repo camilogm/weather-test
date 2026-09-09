@@ -18,11 +18,18 @@ export default function App() {
   const place = forecast?.location ?? location
 
   return (
-    <div className="mx-auto flex min-h-full max-w-6xl flex-col gap-6 px-4 py-6 sm:px-6 sm:py-10">
-      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="text-sm font-medium text-accent">{t('app.eyebrow')}</p>
-          <h1 className="mt-1 text-3xl font-semibold tracking-tight sm:text-4xl">
+    <div className="mx-auto flex min-h-full max-w-6xl flex-col px-5 py-8 sm:px-8 sm:py-12">
+      {/*
+        A masthead, not a toolbar: kicker, name, coordinates, then the heavy
+        rule that every printed bulletin puts under its title.
+      */}
+      <header className="flex flex-col gap-6 border-b-2 border-ink pb-5 sm:flex-row sm:items-end sm:justify-between">
+        <div className="min-w-0">
+          <p className="font-mono text-[0.7rem] font-medium uppercase tracking-[0.22em] text-warm">
+            {t('app.eyebrow')}
+          </p>
+
+          <h1 className="mt-2 font-display text-5xl font-medium leading-[0.95] tracking-tight sm:text-6xl">
             {place.name}
           </h1>
 
@@ -38,7 +45,9 @@ export default function App() {
             type="button"
             onClick={refresh}
             aria-label={t('picker.refresh')}
-            className="shrink-0 rounded-lg border border-line bg-surface px-3 py-2 transition-colors hover:bg-surface-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            // size-11 is 44px: it lines the button up with the input beside it
+            // and clears the minimum touch target in the same stroke.
+            className="flex size-11 shrink-0 cursor-pointer items-center justify-center border border-ink bg-surface transition-colors hover:bg-ink hover:text-canvas focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           >
             <svg viewBox="0 0 20 20" className="size-4" aria-hidden="true">
               <path
@@ -61,7 +70,7 @@ export default function App() {
         </div>
       </header>
 
-      <main className="flex-1 space-y-6">
+      <main className="flex-1 space-y-8 py-8">
         {status === 'loading' && <LoadingState />}
 
         {status === 'error' && error && (
@@ -77,7 +86,8 @@ export default function App() {
         )}
       </main>
 
-      <footer className="border-t border-line pt-4 text-xs text-ink-muted">
+      {/* The colophon: where the page came from, set small in mono like a credit line. */}
+      <footer className="border-t border-line pt-4 font-mono text-[0.7rem] leading-relaxed text-ink-muted">
         {t('footer.credit')}
         {forecast && (
           <>

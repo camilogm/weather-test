@@ -18,7 +18,7 @@ export function DegradedNotice({ provenance }: { provenance: Provenance }) {
   return (
     <div
       role="status"
-      className="flex items-start gap-3 rounded-xl border border-warning/40 bg-warning/10 px-4 py-3 text-sm text-warning-ink"
+      className="flex items-start gap-3 border-l-2 border-warning bg-warning/10 px-4 py-3 text-sm text-warning-ink"
     >
       <svg viewBox="0 0 20 20" className="mt-0.5 size-5 shrink-0" aria-hidden="true">
         <path
@@ -33,8 +33,10 @@ export function DegradedNotice({ provenance }: { provenance: Provenance }) {
       </svg>
 
       <p className="leading-relaxed">
-        <span className="font-semibold">{t('degraded.title')}</span> {explanation}{' '}
-        {t('degraded.updatedAt', { when: formatObservedAt(provenance.retrievedAt) })}
+        <span className="font-mono text-xs font-medium uppercase tracking-[0.14em]">
+          {t('degraded.title')}
+        </span>{' '}
+        {explanation} {t('degraded.updatedAt', { when: formatObservedAt(provenance.retrievedAt) })}
       </p>
     </div>
   )

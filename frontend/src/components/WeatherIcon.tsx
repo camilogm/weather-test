@@ -161,8 +161,8 @@ function renderGlyph(name: WeatherIconName) {
           <path
             d="M26 28 L19 37 h6 l-3 8 10 -11 h-6 l4 -6 Z"
             fill="currentColor"
-            fillOpacity={0.85}
-            className="text-warning"
+            fillOpacity={0.9}
+            className="text-warm"
           />
         </>
       )

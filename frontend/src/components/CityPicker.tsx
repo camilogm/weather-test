@@ -133,7 +133,7 @@ export function CityPicker({ selected, onSelect }: Props) {
         }}
         onFocus={() => setIsOpen(true)}
         onKeyDown={onKeyDown}
-        className="w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm placeholder:text-ink-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        className="h-11 w-full border border-ink bg-surface px-3 text-sm placeholder:text-ink-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
       />
 
       {/* Screen readers are told how many options appeared; sighted users see them. */}
@@ -148,7 +148,7 @@ export function CityPicker({ selected, onSelect }: Props) {
           id={listboxId}
           role="listbox"
           aria-label={t('picker.label')}
-          className="absolute z-10 mt-1 max-h-72 w-full overflow-y-auto rounded-lg border border-line bg-surface py-1 shadow-lg"
+          className="absolute z-10 mt-1 max-h-72 w-full overflow-y-auto border border-ink bg-surface shadow-[0.25rem_0.25rem_0_0_var(--color-line)]"
         >
           {status === 'searching' && <Message text={t('picker.searching')} />}
           {status === 'error' && <Message text={t('picker.failed')} />}
@@ -169,13 +169,23 @@ export function CityPicker({ selected, onSelect }: Props) {
                 choose(suggestion)
               }}
               onPointerEnter={() => setActive({ term: trimmed, index })}
+              // Inverted rather than tinted: ink on paper flips to paper on ink,
+              // which reads as a highlight in both colour schemes without needing
+              // a second token for each one.
               className={[
-                'cursor-pointer px-3 py-2 text-sm',
-                index === activeIndex ? 'bg-accent/12' : '',
+                'cursor-pointer px-3 py-2 text-sm transition-colors',
+                index === activeIndex ? 'bg-ink text-canvas' : '',
               ].join(' ')}
             >
               <span className="block font-medium">{suggestion.name}</span>
-              <span className="block text-xs text-ink-muted">{describe(suggestion)}</span>
+              <span
+                className={[
+                  'block font-mono text-xs',
+                  index === activeIndex ? 'text-canvas/70' : 'text-ink-muted',
+                ].join(' ')}
+              >
+                {describe(suggestion)}
+              </span>
             </li>
           ))}
         </ul>

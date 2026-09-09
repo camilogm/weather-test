@@ -22,7 +22,7 @@
 
   "current": {
     "heading": "Condiciones actuales",
-    "summary": "{condition} · sensación térmica {apparent}",
+    "apparent": "Sensación",
     "humidity": "Humedad",
     "wind": "Viento",
     "windValue": "{speed} km/h",

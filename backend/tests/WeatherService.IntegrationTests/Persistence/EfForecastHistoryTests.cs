@@ -2,6 +2,7 @@ using FluentAssertions;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Time.Testing;
 using WeatherService.Application.Model;
 using WeatherService.Infrastructure.Persistence;
 
@@ -22,6 +23,8 @@ public sealed class EfForecastHistoryTests : IAsyncLifetime
     private static readonly GeoLocation Guatemala = new("Guatemala City", 14.6349, -90.5069);
     private static readonly DateTimeOffset Now = new(2026, 9, 7, 12, 0, 0, TimeSpan.Zero);
 
+    private readonly FakeTimeProvider _clock = new(Now);
+
     private SqliteConnection _connection = null!;
     private SqliteWeatherDbContext _context = null!;
     private EfForecastHistory _sut = null!;
@@ -39,7 +42,7 @@ public sealed class EfForecastHistoryTests : IAsyncLifetime
         _context = new SqliteWeatherDbContext(options);
         await _context.Database.MigrateAsync();
 
-        _sut = new EfForecastHistory(_context, NullLogger<EfForecastHistory>.Instance);
+        _sut = new EfForecastHistory(_context, _clock, NullLogger<EfForecastHistory>.Instance);
     }
 
     public async Task DisposeAsync()
@@ -110,13 +113,126 @@ public sealed class EfForecastHistoryTests : IAsyncLifetime
         snapshots.Should().Be(2);
     }
 
+    [Fact]
+    public async Task Serves_history_recorded_inside_the_usable_window()
+    {
+        await SeedAsync(SanSalvador, Now - EfForecastHistory.UsableFor + TimeSpan.FromHours(1));
+
+        var found = await _sut.GetLatestAsync(SanSalvador, CancellationToken.None);
+
+        found.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task Ignores_history_older_than_the_usable_window()
+    {
+        // A stored forecast describes the seven days that followed the moment it
+        // was taken. Once it ages past that span every day in it has already
+        // happened, and replaying it would dress up the past as a forecast.
+        await SeedAsync(SanSalvador, Now - EfForecastHistory.UsableFor - TimeSpan.FromHours(1));
+
+        var found = await _sut.GetLatestAsync(SanSalvador, CancellationToken.None);
+
+        found.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Prefers_a_usable_snapshot_over_a_newer_unusable_one_being_absent()
+    {
+        // The age cap must filter, not just cut off at the newest row: a stale
+        // row sitting on top must not hide a usable one underneath it.
+        await SeedAsync(SanSalvador, Now.AddDays(-2));
+        await SeedAsync(SanSalvador, Now - EfForecastHistory.RetainFor + TimeSpan.FromHours(1));
+
+        var found = await _sut.GetLatestAsync(SanSalvador, CancellationToken.None);
+
+        found!.RetrievedAt.Should().Be(Now.AddDays(-2));
+    }
+
+    [Fact]
+    public async Task Writing_prunes_snapshots_past_the_retention_window()
+    {
+        await SeedAsync(SanSalvador, Now - EfForecastHistory.RetainFor - TimeSpan.FromHours(1));
+        await SeedAsync(SanSalvador, Now.AddDays(-2));
+
+        await _sut.SaveAsync(AForecastFor(SanSalvador, Now), CancellationToken.None);
+
+        var remaining = await _context
+            .Forecasts.AsNoTracking()
+            .Select(snapshot => snapshot.RetrievedAtUtc)
+            .ToListAsync();
+
+        remaining.Should().BeEquivalentTo([Now.AddDays(-2).UtcDateTime, Now.UtcDateTime]);
+    }
+
+    [Fact]
+    public async Task Pruning_takes_the_stored_days_with_it()
+    {
+        // ExecuteDelete bypasses EF's change tracker, so the cascade that clears
+        // these rows has to be the one declared on the foreign key in the
+        // database itself. If that ever gets dropped, this fails.
+        await SeedAsync(SanSalvador, Now - EfForecastHistory.RetainFor - TimeSpan.FromHours(1));
+
+        await _sut.SaveAsync(AForecastFor(SanSalvador, Now), CancellationToken.None);
+
+        var days = await _context.ForecastDays.CountAsync();
+
+        days.Should().Be(7);
+    }
+
+    [Fact]
+    public async Task Pruning_only_touches_the_location_being_written()
+    {
+        await SeedAsync(Guatemala, Now.AddDays(-30));
+
+        await _sut.SaveAsync(AForecastFor(SanSalvador, Now), CancellationToken.None);
+
+        var guatemala = await _context.Forecasts.CountAsync(s => s.LocationKey == Guatemala.Key);
+
+        guatemala.Should().Be(1);
+    }
+
+    /// <summary>
+    /// Writes a snapshot straight through the context rather than through the
+    /// port, so ageing rows can be planted without the write path pruning them
+    /// on the way in.
+    /// </summary>
+    private async Task SeedAsync(GeoLocation location, DateTimeOffset retrievedAt)
+    {
+        var forecast = AForecastFor(location, retrievedAt);
+
+        _context.Forecasts.Add(
+            new ForecastSnapshot
+            {
+                Id = Guid.NewGuid(),
+                LocationKey = location.Key,
+                LocationName = location.Name,
+                Latitude = location.Latitude,
+                Longitude = location.Longitude,
+                RetrievedAtUtc = retrievedAt.UtcDateTime,
+                Days = forecast
+                    .Days.Select(day => new ForecastDay
+                    {
+                        Id = Guid.NewGuid(),
+                        Date = day.Date,
+                        MinTemperatureC = day.MinTemperatureC,
+                        MaxTemperatureC = day.MaxTemperatureC,
+                        Condition = day.Condition,
+                    })
+                    .ToList(),
+            });
+
+        await _context.SaveChangesAsync();
+        _context.ChangeTracker.Clear();
+    }
+
     private static WeeklyForecast AForecastFor(GeoLocation location, DateTimeOffset retrievedAt) =>
         new(
             location,
             Enumerable
                 .Range(0, 7)
                 .Select(offset => new DailyForecast(
-                    new DateOnly(2026, 9, 7).AddDays(offset),
+                    DateOnly.FromDateTime(retrievedAt.UtcDateTime).AddDays(offset),
                     MinTemperatureC: 21.0 + offset,
                     MaxTemperatureC: 31.0 + offset,
                     Condition: WeatherCondition.PartlyCloudy))

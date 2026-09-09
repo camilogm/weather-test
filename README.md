@@ -235,6 +235,28 @@ socket, `500`, truncated payload, open circuit — leaves as
 Snapshots are append-only: history is a log, not a cache. Overwriting would
 destroy the very record that makes the last fallback useful.
 
+A log still needs a floor and a ceiling, and they are deliberately different
+numbers:
+
+| Window       | Value  | What it governs                                    |
+| ------------ | ------ | -------------------------------------------------- |
+| `UsableFor`  | 3 days | How old a snapshot may be and still be **served**  |
+| `RetainFor`  | 7 days | How long a snapshot is **kept** before it is swept |
+
+`UsableFor` exists because a snapshot describes the seven days that followed the
+moment it was taken. Let it age far enough and every day in it has already
+happened — replaying that would dress up the past as a forecast, a `200` worse
+than the `503` it replaced. Serving something old is honest only while it is
+labelled old *and* still describes the future.
+
+`RetainFor` is the wider of the two so the serving window can be widened later
+without the rows having already been thrown away. Each write sweeps its own
+location's expired rows on the way out: equality on the key plus a range on the
+timestamp is exactly the shape of the existing index, so the sweep costs one
+index scan. It runs outside a transaction and never fails the write — the
+snapshot is already committed, and a missed sweep simply happens on the next
+one.
+
 **Postgres and SQLite have separate migration sets**, because they emit
 incompatible DDL:
 
@@ -257,7 +279,7 @@ make test-unit         # fast, no I/O
 make test-integration  # real SQLite, real HTTP, real ASP.NET pipeline
 ```
 
-70 tests, in two layers that do genuinely different jobs.
+86 tests, in two layers that do genuinely different jobs.
 
 **Unit tests** cover the use cases through substituted ports. No network, no
 database, no `Thread.Sleep` — `FakeTimeProvider` moves the clock, so testing a

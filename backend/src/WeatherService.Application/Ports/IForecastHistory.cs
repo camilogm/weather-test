@@ -14,6 +14,15 @@ public interface IForecastHistory
     /// <summary>Records a live forecast so it can be replayed during an outage.</summary>
     Task SaveAsync(WeeklyForecast forecast, CancellationToken cancellationToken);
 
-    /// <summary>The most recently stored forecast for a location, or null if there is none.</summary>
+    /// <summary>
+    /// The most recently stored forecast for a location that is still recent
+    /// enough to be worth serving, or null if there is none.
+    ///
+    /// "Still worth serving" is part of the contract, not an implementation
+    /// detail: a stored forecast describes the days that followed the moment it
+    /// was taken, so once it ages past that span it no longer describes the
+    /// future at all. Returning it would end the degradation chain with a
+    /// confident answer about days that have already happened.
+    /// </summary>
     Task<WeeklyForecast?> GetLatestAsync(GeoLocation location, CancellationToken cancellationToken);
 }

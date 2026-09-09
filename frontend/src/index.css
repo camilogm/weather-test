@@ -22,8 +22,15 @@
   --color-danger: oklch(58% 0.19 25);
 }
 
+/*
+  Dark mode overrides the variables as plain CSS rather than as a second
+  @theme block. Tailwind v4 hoists every @theme into one :root, so a @theme
+  nested in a media query does not stay nested — it silently overwrites the
+  first one and the page renders dark at every hour of the day. Unlayered CSS
+  outranks anything Tailwind emits into a layer, so this override always wins.
+*/
 @media (prefers-color-scheme: dark) {
-  @theme {
+  :root {
     --color-canvas: oklch(19% 0.02 265);
     --color-surface: oklch(24% 0.022 265);
     --color-surface-muted: oklch(28% 0.024 265);

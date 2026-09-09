@@ -1,25 +1,48 @@
 @import 'tailwindcss';
 
 /*
-  One palette, defined once, flipped by the viewer's OS preference.
-  Every colour below is a token so a component never hardcodes a hex value.
+  The design line is a printed weather bulletin: paper for the canvas, ink for
+  the type, hairline rules instead of floating cards, and a single spot colour
+  spent sparingly. Every colour below is a token so a component never hardcodes
+  a hex value.
 */
 @theme {
-  --font-sans:
-    'Inter var', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  /*
+    Three voices, and each one has a job. Serif sets the headlines and the
+    temperatures, because a number that large should read as a headline.
+    Mono sets labels, dates and coordinates — the things a bulletin prints in
+    small caps down the side. The system sans keeps prose legible for free.
+  */
+  --font-display: 'Newsreader', 'Iowan Old Style', Palatino, Georgia, serif;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
-  --color-canvas: oklch(98.4% 0.005 250);
-  --color-surface: oklch(100% 0 0);
-  --color-surface-muted: oklch(96.5% 0.008 250);
-  --color-line: oklch(90% 0.012 250);
-  --color-ink: oklch(24% 0.02 265);
-  --color-ink-muted: oklch(52% 0.018 265);
-  --color-accent: oklch(58% 0.16 250);
-  --color-warm: oklch(70% 0.16 55);
-  --color-cool: oklch(72% 0.11 235);
-  --color-warning: oklch(72% 0.15 75);
-  --color-warning-ink: oklch(38% 0.1 75);
-  --color-danger: oklch(58% 0.19 25);
+  --color-canvas: oklch(97.2% 0.012 85);
+  --color-surface: oklch(99.3% 0.005 85);
+  --color-surface-muted: oklch(94.2% 0.016 82);
+  --color-line: oklch(86% 0.018 75);
+  --color-ink: oklch(21% 0.016 60);
+  --color-ink-muted: oklch(48% 0.018 62);
+  /*
+    Accent and warm carry the same brick, on purpose: the palette has one spot
+    colour and a focus ring is not allowed to invent a second. They stay two
+    tokens because they answer to different things — accent to interaction,
+    warm to the hot end of the temperature ramp — and either can move alone.
+    An indigo ring sat here first and read as the browser's default blue, which
+    is the one generic note the rest of the page had already got rid of.
+  */
+  --color-accent: oklch(45% 0.16 40);
+  /*
+    The spot colour doubles as small type — the kicker, the "Hoy" marker — so it
+    is pinned at the lightness that clears 4.5:1 on paper rather than at the
+    brighter vermilion that only ever passed as a decorative fill.
+  */
+  --color-warm: oklch(45% 0.16 40);
+  /* Desaturated to printed-ink blue; the screen blue fought the paper. */
+  --color-cool: oklch(52% 0.07 235);
+  --color-warning: oklch(66% 0.14 72);
+  --color-warning-ink: oklch(36% 0.09 62);
+  --color-danger: oklch(46% 0.17 20);
 }
 
 /*
@@ -31,18 +54,18 @@
 */
 @media (prefers-color-scheme: dark) {
   :root {
-    --color-canvas: oklch(19% 0.02 265);
-    --color-surface: oklch(24% 0.022 265);
-    --color-surface-muted: oklch(28% 0.024 265);
-    --color-line: oklch(34% 0.025 265);
-    --color-ink: oklch(96% 0.008 250);
-    --color-ink-muted: oklch(72% 0.02 260);
-    --color-accent: oklch(72% 0.14 250);
-    --color-warm: oklch(75% 0.15 55);
-    --color-cool: oklch(76% 0.1 235);
-    --color-warning: oklch(78% 0.14 75);
-    --color-warning-ink: oklch(88% 0.1 80);
-    --color-danger: oklch(70% 0.17 25);
+    --color-canvas: oklch(16.5% 0.01 62);
+    --color-surface: oklch(21% 0.012 62);
+    --color-surface-muted: oklch(26% 0.014 62);
+    --color-line: oklch(33% 0.016 62);
+    --color-ink: oklch(94% 0.012 80);
+    --color-ink-muted: oklch(70% 0.018 70);
+    --color-accent: oklch(72% 0.16 45);
+    --color-warm: oklch(72% 0.16 45);
+    --color-cool: oklch(72% 0.06 235);
+    --color-warning: oklch(78% 0.13 75);
+    --color-warning-ink: oklch(88% 0.09 80);
+    --color-danger: oklch(68% 0.16 22);
   }
 }
 

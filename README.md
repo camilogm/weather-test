@@ -411,26 +411,33 @@ Two things about this are worth knowing before you run it:
 
 | | Backend | Front end |
 | --- | --- | --- |
-| Lines of code | 1585 | 1100 |
+| Lines of code | 1605 | 1178 |
 | Bugs | 0 | 0 |
+| Vulnerabilities | 0 | 0 |
 | Duplication | 0.0% | 0.0% |
-| Code smells | 4 | 15 |
-| Technical debt | 15 min | 95 min |
-| Reliability / Security / Maintainability | A / **C** / A | A / A / A |
+| Code smells | 4 | 11 |
+| Technical debt | 15 min | 75 min |
+| Reliability / Security / Maintainability | A / A / A | A / A / A |
 
-That `C` on security is the whole of the backend's three `vulnerabilities`, and
-all three are rule S2068, `"password" detected here` — the localhost development
-credentials in `appsettings.json`, `DatabaseOptions.cs` and
-`DesignTimeContextFactories.cs`. They are not a leak and the rating overstates
-them. They are still worth moving behind an environment variable before anyone
-builds a habit on them, which is the useful half of the finding.
+The security rating was a `C` when this harness first ran, on three counts of
+rule S2068 — the localhost development passwords then sitting in
+`appsettings.json`, `DatabaseOptions.cs` and `DesignTimeContextFactories.cs`.
+Not a leak, and the rating overstated them, but the useful half of the finding
+was real and they are gone: see **Configuration** above.
 
-The honest reading of that table is the reason the harness is documented rather
-than just used: **rating A everywhere, and static analysis still missed the two
-most serious defects in the codebase.** Both were unbounded-growth problems in
-`EfForecastHistory` — a table nothing ever pruned, and a fallback with no age
-cap. Neither has a syntactic signature. An analyser matches shapes; it cannot
-reason about what a row means or how many of them there will be by Tuesday.
+The honest reading of that table, though, is the reason the harness is
+documented rather than just used: **rating A almost everywhere, and static
+analysis still missed the two most serious defects in the codebase.** Both were
+unbounded-growth problems in `EfForecastHistory` — a table nothing ever pruned,
+and a fallback with no age cap. Neither has a syntactic signature. An analyser
+matches shapes; it cannot reason about what a row means or how many of them
+there will be by Tuesday.
+
+It does catch what it is good at, including on work done here: extracting
+`useCombobox` went in with a four-level nested ternary, and the scan put
+cognitive complexity up by 24 and technical debt up by 20 minutes until that was
+rewritten with guard clauses. A quality gate that only ever agrees with you is
+not a gate.
 
 Sonar is the floor, not the verdict.
 
@@ -441,10 +448,19 @@ Sonar is the floor, not the verdict.
 Everything is overridable through `appsettings.json`, environment variables
 (`Section__Key`) or `.env` for compose.
 
+**No credential is committed.** The connection strings in `appsettings.json`
+and in the options defaults name a host, a database and a user, and stop there;
+the password arrives through the environment. The compose stack passes a whole
+`Database__ConnectionString` built from `.env`, Development runs on SQLite where
+the question never comes up, and the design-time factory that `dotnet ef` uses
+reads the same `POSTGRES_*` variables — so `make migration-up` works off the
+`.env` that is already there rather than off a default somebody would eventually
+copy somewhere real.
+
 | Setting                                    | Default                         |
 | ------------------------------------------ | ------------------------------- |
 | `Database__Provider`                       | `Postgres` (`Sqlite` in Development) |
-| `Database__ConnectionString`               | local Postgres                  |
+| `Database__ConnectionString`               | local Postgres, **no password** |
 | `Database__MigrateOnStartup`               | `true`                          |
 | `WeatherProvider__BaseAddress`             | `https://api.open-meteo.com/`   |
 | `WeatherProvider__Resilience__AttemptTimeout` | `00:00:03`                   |

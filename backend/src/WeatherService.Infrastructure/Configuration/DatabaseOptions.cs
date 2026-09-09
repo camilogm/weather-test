@@ -19,8 +19,17 @@ public sealed class DatabaseOptions
 
     public DatabaseProvider Provider { get; set; } = DatabaseProvider.Postgres;
 
+    /// <summary>
+    /// Points at a local Postgres and carries no password.
+    ///
+    /// A committed default is a default everybody gets, so it must not be a
+    /// credential: the compose stack supplies the real one through
+    /// Database__ConnectionString, and Development runs on SQLite where the
+    /// question never comes up. Somewhere that needs a password says so through
+    /// the environment.
+    /// </summary>
     public string ConnectionString { get; set; } =
-        "Host=localhost;Port=5432;Database=weather;Username=weather;Password=weather";
+        "Host=localhost;Port=5432;Database=weather;Username=weather";
 
     public string SqliteConnectionString { get; set; } = "Data Source=weather.db";
 

@@ -5,6 +5,14 @@ DOTNET_ROOT ?= $(shell brew --prefix dotnet@8 2>/dev/null)/libexec
 export DOTNET_ROOT
 export PATH := $(PATH):$(HOME)/.dotnet/tools
 
+# Global dotnet tools land here, and they are named by full path on purpose:
+# make skips the shell for a recipe with no shell metacharacters, and that path
+# resolves commands against make's own PATH rather than the one exported above.
+# It is why `cd x && dotnet-sonarscanner` finds its tool and a bare `dotnet-ef`
+# does not.
+DOTNET_TOOLS := $(HOME)/.dotnet/tools
+DOTNET_EF    := $(DOTNET_TOOLS)/dotnet-ef
+
 BACKEND        := backend
 SOLUTION       := $(BACKEND)/WeatherService.sln
 API            := $(BACKEND)/src/WeatherService.Api
@@ -82,21 +90,21 @@ test-watch: ## Re-run the unit tests on every change
 .PHONY: migration-add
 migration-add: ## Add a migration for both providers: make migration-add name=AddThing
 	@test -n "$(name)" || (echo "usage: make migration-add name=<MigrationName>" && exit 1)
-	dotnet-ef migrations add $(name) --context PostgresWeatherDbContext \
+	$(DOTNET_EF) migrations add $(name) --context PostgresWeatherDbContext \
 		--project $(INFRASTRUCTURE) --startup-project $(API) \
 		--output-dir Persistence/Migrations/Postgres
-	dotnet-ef migrations add $(name) --context SqliteWeatherDbContext \
+	$(DOTNET_EF) migrations add $(name) --context SqliteWeatherDbContext \
 		--project $(INFRASTRUCTURE) --startup-project $(API) \
 		--output-dir Persistence/Migrations/Sqlite
 
 .PHONY: migration-list
 migration-list: ## List applied and pending migrations for Postgres
-	dotnet-ef migrations list --context PostgresWeatherDbContext \
+	$(DOTNET_EF) migrations list --context PostgresWeatherDbContext \
 		--project $(INFRASTRUCTURE) --startup-project $(API)
 
 .PHONY: migration-up
 migration-up: ## Apply pending Postgres migrations
-	dotnet-ef database update --context PostgresWeatherDbContext \
+	$(DOTNET_EF) database update --context PostgresWeatherDbContext \
 		--project $(INFRASTRUCTURE) --startup-project $(API)
 
 .PHONY: migration-tools

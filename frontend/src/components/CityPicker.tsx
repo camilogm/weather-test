@@ -39,11 +39,30 @@ export function CityPicker({ selected, onSelect }: Props) {
   const { status, results } = useLocationSearch(term)
 
   const trimmed = term.trim()
-  const activeIndex = active.term === trimmed ? active.index : -1
+
+  // Clamped against what is actually rendered. The remembered highlight
+  // returns the moment the term matches again — which happens on a deleted and
+  // retyped letter, while the replacement results are still in flight — and
+  // aria-activedescendant would then name an element that is not on the page.
+  const activeIndex =
+    active.term === trimmed && active.index < results.length ? active.index : -1
 
   const listboxId = useId()
   const optionId = (index: number) => `${listboxId}-option-${index}`
   const containerRef = useRef<HTMLDivElement>(null)
+  const optionRefs = useRef<(HTMLLIElement | null)[]>([])
+
+  // The list caps at 288px and the search returns up to eight suggestions, so
+  // the virtual cursor can walk off the bottom of what is visible. This is the
+  // one place in the component where touching the DOM directly is the right
+  // answer: there is no declarative way to ask a scroll container to move.
+  useEffect(() => {
+    if (activeIndex < 0) {
+      return
+    }
+
+    optionRefs.current[activeIndex]?.scrollIntoView({ block: 'nearest' })
+  }, [activeIndex])
 
   // A click anywhere else means the person moved on without choosing.
   useEffect(() => {
@@ -132,6 +151,13 @@ export function CityPicker({ selected, onSelect }: Props) {
           setIsOpen(true)
         }}
         onFocus={() => setIsOpen(true)}
+        // Pointerdown outside only catches the mouse. Without this, tabbing to
+        // the next control leaves the list floating over the page.
+        onBlur={(event) => {
+          if (!containerRef.current?.contains(event.relatedTarget)) {
+            setIsOpen(false)
+          }
+        }}
         onKeyDown={onKeyDown}
         className="h-11 w-full border border-ink bg-surface px-3 text-sm placeholder:text-ink-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
       />
@@ -159,6 +185,9 @@ export function CityPicker({ selected, onSelect }: Props) {
           {results.map((suggestion, index) => (
             <li
               key={`${suggestion.name}-${suggestion.latitude}-${suggestion.longitude}`}
+              ref={(node) => {
+                optionRefs.current[index] = node
+              }}
               id={optionId(index)}
               role="option"
               aria-selected={index === activeIndex}

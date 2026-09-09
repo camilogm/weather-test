@@ -25,6 +25,10 @@ const CITIES = [
 
 let onSelect: Mock<(location: SelectedLocation) => void>
 
+/** jsdom implements no layout, so scrollIntoView has to be supplied. */
+const scrollIntoView = vi.fn()
+Element.prototype.scrollIntoView = scrollIntoView
+
 beforeEach(() => {
   vi.clearAllMocks()
   onSelect = vi.fn<(location: SelectedLocation) => void>()
@@ -150,6 +154,62 @@ describe('CityPicker', () => {
 
     expect(screen.queryByRole('listbox')).toBeNull()
     expect(onSelect).not.toHaveBeenCalled()
+  })
+
+  it('closes the listbox when focus leaves the picker', async () => {
+    // Pointerdown outside only covers the mouse. Someone tabbing to the next
+    // control leaves an absolutely positioned list floating over the page,
+    // dismissable only with Escape or a click.
+    const user = aUser()
+    renderPicker()
+    await searchFor(user, 'San')
+
+    await user.tab()
+
+    expect(document.activeElement).toBe(screen.getByRole('button'))
+    expect(screen.queryByRole('listbox')).toBeNull()
+  })
+
+  it('brings the highlighted option into view', async () => {
+    // The list caps at 288px and the API returns up to eight suggestions, so
+    // arrowing past the fifth points aria-activedescendant at something the
+    // person cannot see.
+    const user = aUser()
+    renderPicker()
+    await searchFor(user, 'San')
+
+    await user.keyboard('{ArrowDown}{ArrowDown}{ArrowDown}')
+
+    const options = screen.getAllByRole('option')
+    expect(scrollIntoView).toHaveBeenCalled()
+    expect(scrollIntoView.mock.instances.at(-1)).toBe(options[2])
+  })
+
+  it('always points at an option that is really on the page', async () => {
+    // The highlight is remembered with the term it belongs to, and the term can
+    // leave and come back. Rather than guess which sequence could leave the
+    // pointer dangling, this walks one and checks the invariant at every step:
+    // if the attribute is set, the element it names exists.
+    const user = aUser()
+    renderPicker()
+    await searchFor(user, 'San')
+    const input = screen.getByRole('combobox')
+
+    const pointsAtSomethingReal = () => {
+      const pointed = input.getAttribute('aria-activedescendant')
+      return pointed === null || document.getElementById(pointed) !== null
+    }
+
+    await user.keyboard('{ArrowDown}{ArrowDown}{ArrowDown}')
+    expect(pointsAtSomethingReal()).toBe(true)
+
+    // Narrow the term: the highlight belongs to the old one and must go.
+    await user.keyboard(' Sal')
+    expect(input.getAttribute('aria-activedescendant')).toBeNull()
+
+    // Widen it back to a term whose answers are already known.
+    await user.keyboard('{Backspace}{Backspace}{Backspace}{Backspace}')
+    expect(pointsAtSomethingReal()).toBe(true)
   })
 
   it('asks for nothing until the term is worth searching for', async () => {

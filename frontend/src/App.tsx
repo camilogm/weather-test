@@ -8,11 +8,14 @@ import { CityPicker } from './components/CityPicker'
 import { CurrentConditions } from './components/CurrentConditions'
 import { DegradedNotice } from './components/DegradedNotice'
 import { ForecastWeek } from './components/ForecastWeek'
+import { formatCoordinates } from './components/format'
 import { ErrorState, LoadingState } from './components/StateViews'
 
 export default function App() {
   const [location, setLocation] = useState<SelectedLocation>(DEFAULT_LOCATION)
   const { status, forecast, current, error, refresh } = useWeather(location)
+
+  const place = forecast?.location ?? location
 
   return (
     <div className="mx-auto flex min-h-full max-w-6xl flex-col gap-6 px-4 py-6 sm:px-6 sm:py-10">
@@ -20,8 +23,12 @@ export default function App() {
         <div>
           <p className="text-sm font-medium text-accent">{t('app.eyebrow')}</p>
           <h1 className="mt-1 text-3xl font-semibold tracking-tight sm:text-4xl">
-            {forecast?.location.name ?? location.name}
+            {place.name}
           </h1>
+
+          <p className="mt-2 font-mono text-xs text-ink-muted">
+            {formatCoordinates(place.latitude, place.longitude)}
+          </p>
         </div>
 
         <div className="flex items-start gap-2">

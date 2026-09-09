@@ -1,6 +1,14 @@
 {
   "app": {
-    "eyebrow": "Pronóstico semanal"
+    "eyebrow": "Pronóstico semanal",
+    "coordinates": "{lat} · {lon}"
+  },
+
+  "compass": {
+    "north": "N",
+    "south": "S",
+    "east": "E",
+    "west": "O"
   },
 
   "picker": {

@@ -1,4 +1,4 @@
-import { LOCALE } from '../i18n'
+import { LOCALE, t } from '../i18n'
 
 /**
  * The API sends plain calendar dates ("2026-09-07"). Passing one straight to
@@ -67,6 +67,23 @@ export function isToday(value: string): boolean {
 
 export function formatTemperature(celsius: number): string {
   return `${Math.round(celsius)}°`
+}
+
+/**
+ * "13.70° N · 89.19° O" — the masthead line under the city name.
+ *
+ * Two decimals is roughly a kilometre, which is as much precision as a city
+ * forecast means. The hemisphere letters are Spanish (O for oeste, not W), so
+ * they come out of the dictionary like every other visible string.
+ */
+export function formatCoordinates(latitude: number, longitude: number): string {
+  const northSouth = t(latitude >= 0 ? 'compass.north' : 'compass.south')
+  const eastWest = t(longitude >= 0 ? 'compass.east' : 'compass.west')
+
+  return t('app.coordinates', {
+    lat: `${Math.abs(latitude).toFixed(2)}° ${northSouth}`,
+    lon: `${Math.abs(longitude).toFixed(2)}° ${eastWest}`,
+  })
 }
 
 export function formatObservedAt(value: string): string {

@@ -304,6 +304,70 @@ database, no `Thread.Sleep` — `FakeTimeProvider` moves the clock, so testing a
 
 ---
 
+## Code quality harness
+
+Tests answer "does it work". They do not answer "is it any good". The second
+half of that is a **local SonarQube**, run from this repository so every quality
+number quoted here can be reproduced rather than trusted.
+
+```bash
+make sonar-up      # start SonarQube, wait for it, provision an analysis token
+make sonar-scan    # analyse backend + front end, then print the report
+make sonar-report  # print the report again without re-analysing
+make sonar-down    # stop it, keeping the analysis history
+make sonar-clean   # stop it and delete the volumes and the token
+```
+
+`make sonar-up` is idempotent — re-running it against a server that is already
+up, already has its password changed and already holds a valid token does
+nothing. The token lands in `quality/.sonar-token`, which is gitignored.
+
+It runs as its own compose project on port **9001**, separate from `make up`:
+quality tooling has no business sharing a lifecycle with the service under test,
+and `make clean` must never be able to wipe an analysis history.
+
+Two things about this are worth knowing before you run it:
+
+- **The C# analyser only runs as an MSBuild pass.** `sonar-scan-api` is a
+  `begin` → `dotnet build` → `end` sandwich, and the build is not optional:
+  without it the scanner indexes the files and applies no C# rule at all. That
+  build turns `TreatWarningsAsErrors` off, because the injected Sonar analysers
+  raise warnings of their own and a scan that cannot compile reports nothing.
+- **The .NET scanner must be pinned to `net8.0`.** `dotnet tool install
+  dotnet-sonarscanner` on its own resolves an `osx-x64` apphost that demands a
+  .NET 10 runtime, which fails outright on an Apple Silicon machine carrying
+  only the .NET 8 SDK this project targets. `make sonar-tools` passes
+  `--framework net8.0` and runs automatically as part of the scan.
+
+### What it found, and what it did not
+
+| | Backend | Front end |
+| --- | --- | --- |
+| Lines of code | 1485 | 1090 |
+| Bugs | 0 | 0 |
+| Duplication | 0.0% | 0.0% |
+| Code smells | 4 | 16 |
+| Technical debt | 15 min | 100 min |
+| Reliability / Security / Maintainability | A / **C** / A | A / A / A |
+
+That `C` on security is the whole of the backend's three `vulnerabilities`, and
+all three are rule S2068, `"password" detected here` — the localhost development
+credentials in `appsettings.json`, `DatabaseOptions.cs` and
+`DesignTimeContextFactories.cs`. They are not a leak and the rating overstates
+them. They are still worth moving behind an environment variable before anyone
+builds a habit on them, which is the useful half of the finding.
+
+The honest reading of that table is the reason the harness is documented rather
+than just used: **rating A everywhere, and static analysis still missed the two
+most serious defects in the codebase.** Both were unbounded-growth problems in
+`EfForecastHistory` — a table nothing ever pruned, and a fallback with no age
+cap. Neither has a syntactic signature. An analyser matches shapes; it cannot
+reason about what a row means or how many of them there will be by Tuesday.
+
+Sonar is the floor, not the verdict.
+
+---
+
 ## Configuration
 
 Everything is overridable through `appsettings.json`, environment variables

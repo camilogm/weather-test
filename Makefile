@@ -121,3 +121,84 @@ web-build: ## Type-check and build the front end
 .PHONY: web-lint
 web-lint: ## Lint the front end
 	npm run lint --prefix $(FRONTEND)
+
+# ------------------------------------------------------- quality (SonarQube)
+# The subjective half of a review is a human reading the diff. This is the
+# objective half: a real SonarQube instance, run locally, so the quality numbers
+# quoted anywhere in this repository can be reproduced rather than trusted.
+#
+# It is a separate compose project from `make up` on purpose — see
+# quality/docker-compose.yml.
+
+QUALITY      := quality
+SONAR_URL    ?= http://localhost:9001
+SONAR_NET    := weather-quality_default
+SONAR_TOKEN   = $(shell cat $(QUALITY)/.sonar-token 2>/dev/null)
+SONAR_COMPOSE := docker compose -f $(QUALITY)/docker-compose.yml
+
+.PHONY: sonar-up
+sonar-up: ## Start the local SonarQube and provision an analysis token
+	SONAR_URL=$(SONAR_URL) ./$(QUALITY)/sonar-up.sh
+
+.PHONY: sonar-tools
+sonar-tools: ## Install the SonarScanner for .NET
+	@# --framework net8.0 is load-bearing: the default install resolves an
+	@# osx-x64 apphost that demands a .NET 10 runtime, which fails on Apple
+	@# Silicon boxes carrying only the .NET 8 SDK this project targets.
+	dotnet tool install --global dotnet-sonarscanner --framework net8.0 \
+		|| dotnet tool update --global dotnet-sonarscanner --framework net8.0
+
+.PHONY: sonar-scan
+sonar-scan: sonar-scan-api sonar-scan-web sonar-report ## Analyse both projects and print the report
+
+.PHONY: sonar-scan-api
+sonar-scan-api: sonar-tools ## Analyse the backend
+	@test -n "$(SONAR_TOKEN)" || (echo "no analysis token — run: make sonar-up" && exit 1)
+	@# The C# analyser only runs as an MSBuild pass, so begin/build/end is not
+	@# optional here: without the build in the middle it indexes the files and
+	@# applies no C# rule at all. The build turns TreatWarningsAsErrors off
+	@# because the injected Sonar analysers raise warnings of their own, and a
+	@# quality scan that cannot compile reports nothing.
+	cd $(BACKEND) && dotnet-sonarscanner begin \
+		/k:"weather-backend" /n:"Weather Backend" \
+		/d:sonar.host.url="$(SONAR_URL)" \
+		/d:sonar.token="$(SONAR_TOKEN)" \
+		/d:sonar.scanner.scanAll=false \
+		/d:sonar.exclusions="**/Migrations/**"
+	cd $(BACKEND) && dotnet build WeatherService.sln --no-incremental -p:TreatWarningsAsErrors=false
+	cd $(BACKEND) && dotnet-sonarscanner end /d:sonar.token="$(SONAR_TOKEN)"
+
+.PHONY: sonar-scan-web
+sonar-scan-web: ## Analyse the front end
+	@test -n "$(SONAR_TOKEN)" || (echo "no analysis token — run: make sonar-up" && exit 1)
+	@# Run on SonarQube's own compose network and address it by service name:
+	@# a container cannot reach the host's published port on macOS.
+	docker run --rm \
+		--network $(SONAR_NET) \
+		-e SONAR_HOST_URL="http://sonarqube:9000" \
+		-e SONAR_TOKEN="$(SONAR_TOKEN)" \
+		-v "$(CURDIR)/$(FRONTEND):/usr/src" \
+		sonarsource/sonar-scanner-cli \
+		-Dsonar.projectKey=weather-frontend \
+		-Dsonar.projectName="Weather Frontend" \
+		-Dsonar.sources=src \
+		-Dsonar.inclusions="src/**/*.ts,src/**/*.tsx,src/**/*.css,index.html" \
+		-Dsonar.exclusions="node_modules/**,dist/**" \
+		-Dsonar.sourceEncoding=UTF-8
+
+.PHONY: sonar-report
+sonar-report: ## Print the quality report for both projects
+	@SONAR_URL=$(SONAR_URL) ./$(QUALITY)/sonar-report.py
+
+.PHONY: sonar-open
+sonar-open: ## Open the SonarQube dashboard
+	@open $(SONAR_URL) 2>/dev/null || echo "$(SONAR_URL)"
+
+.PHONY: sonar-down
+sonar-down: ## Stop SonarQube, keeping its analysis history
+	$(SONAR_COMPOSE) down
+
+.PHONY: sonar-clean
+sonar-clean: ## Stop SonarQube and delete its volumes and token
+	$(SONAR_COMPOSE) down --volumes
+	@rm -f $(QUALITY)/.sonar-token

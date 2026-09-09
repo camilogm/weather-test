@@ -32,3 +32,9 @@ appsettings.Development.local.json
 Thumbs.db
 .idea/
 .vs/
+
+# ---- Harness de calidad ----
+quality/.sonar-token
+# Working directories the SonarQube scanners leave behind.
+.sonarqube/
+.scannerwork/

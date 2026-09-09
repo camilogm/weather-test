@@ -66,13 +66,19 @@ function ForecastDay({ day, coldest, warmest }: DayProps) {
 
       <p className="sr-only sm:not-sr-only sm:order-3 sm:text-xs sm:text-ink-muted">{condition}</p>
 
-      {/* Where this day's range sits inside the week's range. */}
+      {/*
+        The track is the week's whole range, tinted cold to hot, and the solid
+        bar is this day's slice of it. The gradient used to live on the bar
+        instead, which meant it ran across whatever width that day happened to
+        need — so the same colour sat at a different temperature in every cell
+        and the scale said nothing. On the track it is a scale.
+      */}
       <div
-        className="hidden h-1.5 overflow-hidden rounded-full bg-surface-muted sm:order-5 sm:block"
+        className="hidden h-1.5 overflow-hidden rounded-full bg-gradient-to-r from-cool/25 to-warm/25 sm:order-5 sm:block"
         aria-hidden="true"
       >
         <div
-          className="h-full rounded-full bg-gradient-to-r from-cool to-warm"
+          className="h-full rounded-full bg-ink"
           style={{ marginInlineStart: `${offset}%`, width: `${Math.max(width, 6)}%` }}
         />
       </div>

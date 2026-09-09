@@ -386,6 +386,10 @@ make sonar-clean   # stop it and delete the volumes and the token
 up, already has its password changed and already holds a valid token does
 nothing. The token lands in `quality/.sonar-token`, which is gitignored.
 
+Test files are declared to SonarQube as tests rather than as sources, so the
+figures below describe production code. Counting a suite as source inflates the
+line count and lets test helpers dilute the very metrics being read.
+
 It runs as its own compose project on port **9001**, separate from `make up`:
 quality tooling has no business sharing a lifecycle with the service under test,
 and `make clean` must never be able to wipe an analysis history.
@@ -407,11 +411,11 @@ Two things about this are worth knowing before you run it:
 
 | | Backend | Front end |
 | --- | --- | --- |
-| Lines of code | 1585 | 1090 |
+| Lines of code | 1585 | 1100 |
 | Bugs | 0 | 0 |
 | Duplication | 0.0% | 0.0% |
-| Code smells | 4 | 16 |
-| Technical debt | 15 min | 100 min |
+| Code smells | 4 | 15 |
+| Technical debt | 15 min | 95 min |
 | Reliability / Security / Maintainability | A / **C** / A | A / A / A |
 
 That `C` on security is the whole of the backend's three `vulnerabilities`, and
@@ -471,7 +475,30 @@ purpose.
 make web-install
 make web            # http://localhost:5173
 make web-build      # type-check and production build
+make web-test       # vitest
 ```
+
+**One request primitive.** `useWeather` and `useLocationSearch` were the same
+state machine written twice, so the shared part is now `useAsyncResource`: one
+request in flight per key, aborted on the way out, and an answer proven to
+belong to the question currently being asked. Status is derived during render
+by comparing the settled result's key against the live one, which makes a stale
+response structurally impossible to display — it simply does not match.
+
+Two details in it are load-bearing and easy to lose in a rewrite:
+
+- **The debounce lives inside**, delaying the request while the key stays live.
+  Debouncing the value and passing the delayed one as the key would make a
+  settled result match for the length of the delay, so the previous term's
+  suggestions would read as current instead of as stale.
+- **The revalidation counter is not part of the key.** Fold it in and asking for
+  fresh data invalidates what is on screen, so a refresh blanks the page to load
+  the very thing it is replacing.
+
+`vitest` covers both, including the two races — a slow answer for a place
+already left behind, and results that stop counting the moment the term moves
+on. Verified to bite: replacing either guard with a null check fails exactly the
+tests that describe it.
 
 **How it talks to the API.** `VITE_API_BASE_URL`, defaulting to
 `http://localhost:8080`. Vite inlines env vars at *build* time, not runtime — an

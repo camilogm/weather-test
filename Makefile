@@ -122,6 +122,14 @@ web-build: ## Type-check and build the front end
 web-lint: ## Lint the front end
 	npm run lint --prefix $(FRONTEND)
 
+.PHONY: web-test
+web-test: ## Run the front-end tests
+	npm test --prefix $(FRONTEND)
+
+.PHONY: web-test-watch
+web-test-watch: ## Re-run the front-end tests on every change
+	npm run test:watch --prefix $(FRONTEND)
+
 # ------------------------------------------------------- quality (SonarQube)
 # The subjective half of a review is a human reading the diff. This is the
 # objective half: a real SonarQube instance, run locally, so the quality numbers
@@ -184,6 +192,8 @@ sonar-scan-web: ## Analyse the front end
 		-Dsonar.sources=src \
 		-Dsonar.inclusions="src/**/*.ts,src/**/*.tsx,src/**/*.css,index.html" \
 		-Dsonar.exclusions="node_modules/**,dist/**" \
+		-Dsonar.tests=src \
+		-Dsonar.test.inclusions="src/**/*.test.ts,src/**/*.test.tsx,src/test/**" \
 		-Dsonar.sourceEncoding=UTF-8
 
 .PHONY: sonar-report

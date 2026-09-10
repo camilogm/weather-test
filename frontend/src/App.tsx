@@ -15,7 +15,16 @@ export default function App() {
   const [location, setLocation] = useState<SelectedLocation>(DEFAULT_LOCATION)
   const { status, forecast, current, error, refresh, isRefreshing } = useWeather(location)
 
-  const place = forecast?.location ?? location
+  /*
+    The name comes from the picker, not from the response. The API answers a
+    coordinate pair and its cache is keyed on those coordinates alone, so the
+    name it echoes back is whatever the first caller for that point happened to
+    send — "Custom location" when a caller sent none at all. The picker already
+    knows which city the person chose; that is the name worth printing.
+    Coordinates still come from the answer, because those are the ones actually
+    forecast.
+  */
+  const coordinates = forecast?.location ?? location
 
   return (
     <div className="mx-auto flex min-h-full max-w-6xl flex-col px-5 py-8 sm:px-8 sm:py-12">
@@ -30,11 +39,11 @@ export default function App() {
           </p>
 
           <h1 className="mt-2 font-display text-5xl font-medium leading-[0.95] tracking-tight sm:text-6xl">
-            {place.name}
+            {location.name}
           </h1>
 
           <p className="mt-2 font-mono text-xs text-ink-muted">
-            {formatCoordinates(place.latitude, place.longitude)}
+            {formatCoordinates(coordinates.latitude, coordinates.longitude)}
           </p>
         </div>
 

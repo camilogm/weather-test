@@ -76,7 +76,10 @@ export function CityPicker({ selected, onSelect }: Props) {
           open()
         }}
         {...inputHandlers}
-        className="h-11 w-full border border-ink bg-surface px-3 text-sm placeholder:text-ink-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        // A pill that floats: no border, because the shadow is already telling
+        // you where the field ends, and two edges saying the same thing is one
+        // edge too many.
+        className="h-11 w-full rounded-pill bg-surface px-5 text-body shadow-control placeholder:text-ink-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
       />
 
       {/* Screen readers are told what happened; sighted users can see it. */}
@@ -85,14 +88,16 @@ export function CityPicker({ selected, onSelect }: Props) {
       </span>
 
       {showPopup && (
-        <div className="absolute z-10 mt-1 w-full border border-ink bg-surface shadow-[0.25rem_0.25rem_0_0_var(--color-line)]">
+        <div className="absolute z-10 mt-2 w-full overflow-hidden rounded-card border border-line bg-surface shadow-popover">
           {/*
             Outside the listbox, not a presentational row inside it. A listbox
             may own only options and groups, and prose about what the search is
             doing is neither — so it lives beside the list rather than
             pretending to be part of it.
           */}
-          {message !== null && <p className="px-3 py-2 text-sm text-ink-muted">{message}</p>}
+          {message !== null && (
+            <p className="px-5 py-2.5 text-caption text-ink-muted">{message}</p>
+          )}
 
           <ul
             id={listboxId}
@@ -107,19 +112,19 @@ export function CityPicker({ selected, onSelect }: Props) {
               role="option"
               aria-selected={index === activeIndex}
               {...optionHandlers(index, suggestion)}
-              // Inverted rather than tinted: ink on paper flips to paper on ink,
-              // which reads as a highlight in both colour schemes without needing
-              // a second token for each one.
+              // The accent fill is the selection colour every desktop list uses,
+              // and it is the same accent as the focus ring — so the highlight
+              // costs the palette nothing new in either colour scheme.
               className={[
-                'cursor-pointer px-3 py-2 text-sm transition-colors',
-                index === activeIndex ? 'bg-ink text-canvas' : '',
+                'cursor-pointer px-5 py-2.5 text-body transition-colors',
+                index === activeIndex ? 'bg-accent text-white' : '',
               ].join(' ')}
             >
                 <span className="block font-medium">{suggestion.name}</span>
                 <span
                   className={[
-                    'block font-mono text-xs',
-                    index === activeIndex ? 'text-canvas/70' : 'text-ink-muted',
+                    'block text-caption',
+                    index === activeIndex ? 'text-white/75' : 'text-ink-muted',
                   ].join(' ')}
                 >
                   {describe(suggestion)}

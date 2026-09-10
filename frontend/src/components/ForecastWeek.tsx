@@ -11,19 +11,18 @@ export function ForecastWeek({ days }: { days: DailyForecast[] }) {
 
   return (
     <section aria-labelledby="forecast-heading">
-      <h2
-        id="forecast-heading"
-        className="font-mono text-[0.7rem] font-medium uppercase tracking-[0.22em] text-ink-muted"
-      >
+      <h2 id="forecast-heading" className="text-label font-medium uppercase text-ink-muted">
         {t('forecast.heading', { days: days.length })}
       </h2>
 
       {/*
-        A ruled table, not seven floating cards. The container draws the top and
-        left rules, every cell draws its own bottom and right, so the grid stays
-        hairline-perfect at any column count instead of doubling up on the seams.
+        Separate rounded tiles with a gap, not a ruled table. The gap is what
+        separates them, which means the grid stays correct at every column
+        count: seven days over four columns leaves one slot empty, and an empty
+        slot in a gap grid is simply empty. In a ruled grid it was a hole with
+        two hairlines hanging off it.
       */}
-      <ol className="mt-3 grid grid-cols-1 border-t border-line sm:grid-cols-2 sm:border-l lg:grid-cols-4 xl:grid-cols-7">
+      <ol className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
         {days.map((day) => (
           <ForecastDay key={day.date} day={day} coldest={coldest} warmest={warmest} />
         ))}
@@ -49,45 +48,52 @@ function ForecastDay({ day, coldest, warmest }: DayProps) {
   return (
     <li
       className={[
-        'relative flex items-center gap-4 border-b border-line px-4 py-4 sm:border-r',
-        'sm:flex-col sm:items-stretch sm:gap-3 sm:px-3 sm:py-5 sm:text-center',
-        today ? 'bg-warm/8' : 'bg-surface',
+        'flex items-center gap-4 rounded-card bg-surface px-4 py-4',
+        'sm:flex-col sm:items-stretch sm:gap-2 sm:px-4 sm:py-4 sm:text-center',
       ].join(' ')}
     >
-      {/* Today is marked with a rule across the top of its column, not a coloured box. */}
-      {today && <span aria-hidden="true" className="absolute inset-x-0 top-0 h-0.5 bg-warm" />}
-
+      {/*
+        Today is marked by setting its name in the accent, not by a coloured
+        rule across the tile. One accent, used the same way everywhere.
+      */}
       <div className="sm:order-1">
         <p
           className={[
-            'font-mono text-xs font-medium uppercase tracking-[0.16em]',
-            today ? 'text-warm' : '',
+            'text-caption font-semibold',
+            today ? 'text-accent' : 'text-ink',
           ].join(' ')}
         >
           {today ? t('forecast.today') : weekdayOf(day.date)}
         </p>
-        <p className="mt-0.5 font-mono text-[0.7rem] text-ink-muted">{dayAndMonthOf(day.date)}</p>
+        <p className="mt-0.5 text-caption tabular-nums text-ink-muted">{dayAndMonthOf(day.date)}</p>
       </div>
 
       <WeatherIcon
         name={day.icon}
         label={condition}
-        className="size-10 shrink-0 sm:order-2 sm:mx-auto sm:size-12"
+        className="size-10 shrink-0 sm:order-2 sm:mx-auto"
       />
 
-      <div className="ml-auto text-right sm:order-4 sm:ml-0 sm:text-center">
+      {/*
+        mt-auto, not a min-height on the condition above it. Every tile is a
+        grid item in the same row, so they already share a height; pushing the
+        temperature to the bottom of that height aligns the numbers across the
+        week whether the condition wraps or not. The min-height only ever
+        guessed at how many lines the condition would need, and reserved 40px
+        to use 19 on the days it guessed wrong.
+      */}
+      <div className="ml-auto text-right sm:order-4 sm:ml-0 sm:mt-auto sm:text-center">
         <p className="tabular-nums">
-          <span className="font-display text-2xl font-medium sm:text-3xl">
+          <span className="text-heading font-semibold">
             {formatTemperature(day.maxTemperatureC)}
           </span>
-          <span className="ml-2 font-mono text-sm text-ink-muted">
+          <span className="ml-2 text-body text-ink-muted">
             {formatTemperature(day.minTemperatureC)}
           </span>
         </p>
       </div>
 
-      {/* Italic serif, the way a print caption sits under its illustration. */}
-      <p className="sr-only sm:not-sr-only sm:order-3 sm:font-display sm:text-sm sm:italic sm:leading-snug sm:text-ink-muted">
+      <p className="sr-only sm:not-sr-only sm:order-3 sm:text-caption sm:leading-snug sm:text-ink-muted">
         {condition}
       </p>
 
@@ -99,11 +105,11 @@ function ForecastDay({ day, coldest, warmest }: DayProps) {
         and the scale said nothing. On the track it is a scale.
       */}
       <div
-        className="hidden h-1.5 overflow-hidden bg-gradient-to-r from-cool/25 to-warm/25 sm:order-5 sm:block"
+        className="hidden h-1.5 overflow-hidden rounded-pill bg-gradient-to-r from-cool/25 to-warm/25 sm:order-5 sm:block"
         aria-hidden="true"
       >
         <div
-          className="h-full bg-ink"
+          className="h-full rounded-pill bg-ink"
           style={{ marginInlineStart: `${offset}%`, width: `${Math.max(width, 6)}%` }}
         />
       </div>

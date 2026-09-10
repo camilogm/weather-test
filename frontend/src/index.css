@@ -1,48 +1,94 @@
 @import 'tailwindcss';
 
 /*
-  The design line is a printed weather bulletin: paper for the canvas, ink for
-  the type, hairline rules instead of floating cards, and a single spot colour
-  spent sparingly. Every colour below is a token so a component never hardcodes
-  a hex value.
+  The design line is Apple Store minimalism: one neutral, one accent, flat
+  fills, soft radii, and separation earned by whitespace rather than by rules.
+  Every colour below is a token so a component never hardcodes a hex value.
 */
 @theme {
   /*
-    Three voices, and each one has a job. Serif sets the headlines and the
-    temperatures, because a number that large should read as a headline.
-    Mono sets labels, dates and coordinates — the things a bulletin prints in
-    small caps down the side. The system sans keeps prose legible for free.
+    One family, many weights. SF Pro on Apple hardware, the platform's own UI
+    font everywhere else — which is also why there is no webfont request in
+    index.html any more. The serif and the mono that used to sit here were the
+    editorial voice; a store page speaks in a single voice.
   */
-  --font-display: 'Newsreader', 'Iowan Old Style', Palatino, Georgia, serif;
-  --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', system-ui,
+    'Segoe UI', Roboto, sans-serif;
 
-  --color-canvas: oklch(97.2% 0.012 85);
-  --color-surface: oklch(99.3% 0.005 85);
-  --color-surface-muted: oklch(94.2% 0.016 82);
-  --color-line: oklch(86% 0.018 75);
-  --color-ink: oklch(21% 0.016 60);
-  --color-ink-muted: oklch(48% 0.018 62);
   /*
-    Accent and warm carry the same brick, on purpose: the palette has one spot
-    colour and a focus ring is not allowed to invent a second. They stay two
-    tokens because they answer to different things — accent to interaction,
-    warm to the hot end of the temperature ramp — and either can move alone.
-    An indigo ring sat here first and read as the browser's default blue, which
-    is the one generic note the rest of the page had already got rid of.
+    Three chromatic hues in the whole interface, and each has a job:
+      253  blue   — interaction (accent) and the cold end of the ramp
+      55   orange — the hot end of the ramp and the degraded warning
+      27   red    — failure, the only hue allowed to stand alone
+    Everything else is the same near-neutral 286, so the greys agree with each
+    other instead of drifting warm in one token and cool in the next.
   */
-  --color-accent: oklch(45% 0.16 40);
+  --color-canvas: oklch(96.5% 0.002 286); /* #f5f5f7 */
+  --color-surface: oklch(100% 0 0); /* #ffffff */
+  --color-surface-muted: oklch(92.8% 0.003 286);
+  --color-line: oklch(87% 0.004 286); /* #d2d2d7 */
+  --color-ink: oklch(24% 0.004 286); /* #1d1d1f */
+  --color-ink-muted: oklch(53.5% 0.006 286); /* #6e6e73 */
+
+  --color-accent: oklch(52% 0.19 253); /* #0071e3 */
+
   /*
-    The spot colour doubles as small type — the kicker, the "Hoy" marker — so it
-    is pinned at the lightness that clears 4.5:1 on paper rather than at the
-    brighter vermilion that only ever passed as a decorative fill.
+    The ramp is the one place a weather app earns a second and third colour.
+    Cool shares the accent's hue on purpose: the cold end of the scale and the
+    interactive blue are the same blue, which is what keeps the page from
+    reading as two unrelated palettes stitched together.
   */
-  --color-warm: oklch(45% 0.16 40);
-  /* Desaturated to printed-ink blue; the screen blue fought the paper. */
-  --color-cool: oklch(52% 0.07 235);
-  --color-warning: oklch(66% 0.14 72);
-  --color-warning-ink: oklch(36% 0.09 62);
-  --color-danger: oklch(46% 0.17 20);
+  --color-cool: oklch(60% 0.13 253);
+  --color-warm: oklch(68% 0.16 55);
+
+  --color-warning: oklch(70% 0.15 55);
+  --color-danger: oklch(52% 0.2 27);
+
+  /*
+    Type is a fixed scale with Apple's tracking baked in, because tracking is
+    the thing everybody forgets: negative and tightening as the size grows,
+    positive only on the small uppercase label. Weight stays out of the tokens
+    so a component can still say font-semibold without fighting the utility.
+    The two large sizes clamp instead of taking a breakpoint, so the headline
+    scales continuously rather than snapping at 640px.
+  */
+  --text-hero: clamp(3.25rem, 13vw, 4.75rem);
+  --text-hero--line-height: 1;
+  --text-hero--letter-spacing: -0.022em;
+
+  --text-title: clamp(2rem, 7vw, 2.5rem);
+  --text-title--line-height: 1.05;
+  --text-title--letter-spacing: -0.02em;
+
+  --text-heading: 1.3125rem;
+  --text-heading--line-height: 1.24;
+  --text-heading--letter-spacing: -0.014em;
+
+  --text-body: 1.0625rem;
+  --text-body--line-height: 1.5;
+  --text-body--letter-spacing: -0.01em;
+
+  --text-caption: 0.875rem;
+  --text-caption--line-height: 1.43;
+  --text-caption--letter-spacing: -0.008em;
+
+  --text-label: 0.75rem;
+  --text-label--line-height: 1.33;
+  --text-label--letter-spacing: 0.06em;
+
+  /* Three radii, and every rounded thing in the app picks one of them. */
+  --radius-control: 0.625rem; /* 10px — inputs, icon buttons, popovers */
+  --radius-card: 1.125rem; /* 18px — cards and panels */
+  --radius-pill: 980px; /* the Apple Store button */
+
+  /*
+    Two elevations, and the distance between them is the point. A control at
+    rest sits ON the page; a popover sits ABOVE it. Giving the search field the
+    popover shadow made it look like it had already been opened.
+  */
+  --shadow-control: 0 1px 2px oklch(0% 0 0 / 0.06), 0 4px 12px oklch(0% 0 0 / 0.07);
+  --shadow-popover: 0 8px 24px oklch(0% 0 0 / 0.12), 0 1px 2px oklch(0% 0 0 / 0.08);
 }
 
 /*
@@ -54,18 +100,23 @@
 */
 @media (prefers-color-scheme: dark) {
   :root {
-    --color-canvas: oklch(16.5% 0.01 62);
-    --color-surface: oklch(21% 0.012 62);
-    --color-surface-muted: oklch(26% 0.014 62);
-    --color-line: oklch(33% 0.016 62);
-    --color-ink: oklch(94% 0.012 80);
-    --color-ink-muted: oklch(70% 0.018 70);
-    --color-accent: oklch(72% 0.16 45);
-    --color-warm: oklch(72% 0.16 45);
-    --color-cool: oklch(72% 0.06 235);
-    --color-warning: oklch(78% 0.13 75);
-    --color-warning-ink: oklch(88% 0.09 80);
-    --color-danger: oklch(68% 0.16 22);
+    --color-canvas: oklch(0% 0 0); /* #000000 */
+    --color-surface: oklch(24% 0.004 286); /* #1d1d1f */
+    --color-surface-muted: oklch(30% 0.004 286);
+    --color-line: oklch(36% 0.005 286);
+    --color-ink: oklch(96.5% 0.002 286);
+    --color-ink-muted: oklch(70% 0.006 286);
+
+    --color-accent: oklch(70% 0.15 250); /* #2997ff */
+
+    --color-cool: oklch(70% 0.12 253);
+    --color-warm: oklch(76% 0.14 55);
+
+    --color-warning: oklch(78% 0.14 60);
+    --color-danger: oklch(66% 0.18 25);
+
+    --shadow-control: 0 1px 2px oklch(0% 0 0 / 0.5), 0 4px 12px oklch(0% 0 0 / 0.4);
+    --shadow-popover: 0 8px 24px oklch(0% 0 0 / 0.6), 0 1px 2px oklch(0% 0 0 / 0.4);
   }
 }
 
@@ -73,6 +124,8 @@ body {
   background-color: var(--color-canvas);
   color: var(--color-ink);
   font-family: var(--font-sans);
+  font-size: var(--text-body);
+  letter-spacing: var(--text-body--letter-spacing);
   -webkit-font-smoothing: antialiased;
 }
 

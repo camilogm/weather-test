@@ -61,7 +61,10 @@ public sealed class WeatherController : ControllerBase
                 result.Weather.ObservedAt));
     }
 
-    /// <summary>The next seven days for a city or an explicit coordinate pair.</summary>
+    /// <summary>
+    /// The next <c>days</c> days for a city or an explicit coordinate pair,
+    /// seven of them when no range is named.
+    /// </summary>
     [HttpGet("forecast")]
     [ProducesResponseType<ForecastResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
@@ -73,7 +76,7 @@ public sealed class WeatherController : ControllerBase
         CancellationToken cancellationToken)
     {
         var location = await ResolveAsync(query, cancellationToken);
-        var result = await _forecasts.GetForecastAsync(location, ForecastHorizon.DefaultDays, cancellationToken);
+        var result = await _forecasts.GetForecastAsync(location, query.Days ?? ForecastHorizon.DefaultDays, cancellationToken);
 
         var provenance = Declare(result.Source, result.IsDegraded, result.Forecast.RetrievedAt);
 

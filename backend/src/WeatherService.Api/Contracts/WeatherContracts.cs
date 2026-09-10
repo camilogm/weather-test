@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using WeatherService.Application.Forecast;
 using WeatherService.Application.Model;
 
 namespace WeatherService.Api.Contracts;
@@ -17,6 +18,20 @@ public sealed class WeatherQuery : IValidatableObject
 
     [Range(-180, 180)]
     public double? Longitude { get; init; }
+
+    /// <summary>
+    /// How many days of forecast to return, from today. Omitted means
+    /// <see cref="ForecastHorizon.DefaultDays"/>, which is what this endpoint
+    /// answered before the range existed — so no client that never heard of it
+    /// sees its response change.
+    ///
+    /// Out of range is a 400 rather than a silent clamp: a caller that asked for
+    /// thirty days and got sixteen without being told would have no way to know
+    /// its request was not honoured. Only <c>forecast</c> reads it; on
+    /// <c>current</c> it is simply ignored, the way an unknown parameter is.
+    /// </summary>
+    [Range(ForecastHorizon.MinimumDays, ForecastHorizon.MaximumDays)]
+    public int? Days { get; init; }
 
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {

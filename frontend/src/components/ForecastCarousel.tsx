@@ -17,8 +17,26 @@ const RANGES = [7, 14] as const
 
 const DEFAULT_RANGE = 7
 
-/** Matches gap-3 on the track; the share below has to deduct it. */
+/** Matches gap-3 on the track; the card width below has to deduct it. */
 const GAP_REM = 0.75
+
+/**
+ * One card is one seventh of the visible track — a week fills the row exactly,
+ * and anything longer scrolls. The width follows the VIEWPORT and never the
+ * range, which is the whole point.
+ *
+ * Sizing it per range looked reasonable and behaved badly. The cards resized on
+ * every switch, and worse, min-width cut the animation off partway: going to
+ * fourteen days the basis travelled from 163px to 76px while the used width hit
+ * its 140px floor a third of the way in and stopped, so the change was over
+ * long before the transition was. Held constant there is nothing to animate,
+ * and the days that arrive when the range widens arrive off screen, where
+ * nobody has to watch them appear.
+ *
+ * It also makes one arrow press exactly one week: the hook steps by the track's
+ * own width, and the track's width is seven cards.
+ */
+const CARD_BASIS = `calc((100% - ${(DEFAULT_RANGE - 1) * GAP_REM}rem) / ${DEFAULT_RANGE})`
 
 export function ForecastCarousel({ days }: { days: DailyForecast[] }) {
   const [requested, setRequested] = useState<number>(DEFAULT_RANGE)
@@ -39,13 +57,6 @@ export function ForecastCarousel({ days }: { days: DailyForecast[] }) {
   const coldest = Math.min(...visible.map((day) => day.minTemperatureC))
   const warmest = Math.max(...visible.map((day) => day.maxTemperatureC))
 
-  // An even share of the visible width, gaps deducted — and the reason the
-  // resize can be animated at all. The previous version reached the same widths
-  // through flex-grow, but grow distributes leftover space during layout: the
-  // declared value never changes, so there is nothing for a transition to fire
-  // on and the cards could only snap. A flex-basis that is recomputed per range
-  // does change, so the browser has two values to travel between.
-  const share = `calc((100% - ${(visible.length - 1) * GAP_REM}rem) / ${visible.length})`
 
   return (
     <section aria-labelledby="forecast-heading">
@@ -85,13 +96,7 @@ export function ForecastCarousel({ days }: { days: DailyForecast[] }) {
           className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 motion-safe:scroll-smooth focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
         >
           {visible.map((day) => (
-            <ForecastDay
-              key={day.date}
-              day={day}
-              share={share}
-              coldest={coldest}
-              warmest={warmest}
-            />
+            <ForecastDay key={day.date} day={day} coldest={coldest} warmest={warmest} />
           ))}
         </ol>
 
@@ -154,8 +159,20 @@ function RangePicker({ available, value, onChange }: RangeProps) {
             h-9 inside p-1 makes the whole control 44px, level with the search
             field and the refresh button beside it, while each segment stays
             well past the 24px minimum a pointer target owes.
+
+            Hovering an unselected segment washes it grey and darkens the label —
+            a preview of the thing that is about to happen. Hovering the one you
+            already chose previews nothing, so it gets nothing: the last pair
+            re-asserts the selected look for that case.
+
+            Re-asserted through specificity, not source order. Both variants land
+            in the same layer with the same weight, so whichever Tailwind happens
+            to emit second would win — which is how a hover ended up painting ink
+            on the accent, black on blue, a pairing that reads as a broken state
+            rather than a hovered one. Two stacked :is() selectors beat one on
+            specificity regardless of the order they are written in.
           */}
-          <span className="flex h-9 items-center rounded-pill px-3 text-caption tabular-nums text-ink-muted transition-colors peer-hover:text-ink peer-checked:bg-accent peer-checked:text-white peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-accent">
+          <span className="flex h-9 items-center rounded-pill px-3 text-caption tabular-nums text-ink-muted transition-colors peer-hover:bg-surface-muted peer-hover:text-ink peer-checked:bg-accent peer-checked:text-white peer-checked:peer-hover:bg-accent peer-checked:peer-hover:text-white peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-accent">
             {t('forecast.rangeOption', { days: option })}
           </span>
         </label>
@@ -189,7 +206,11 @@ function Arrow({ label, onClick, disabled, back = false }: ArrowProps) {
         'hover:bg-surface-muted hover:text-ink',
         'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
         'disabled:cursor-default disabled:opacity-0 disabled:hover:bg-surface',
-        back ? 'left-1' : 'right-1',
+        // Centred ON the edge rather than inset from it: half the button hangs
+        // in the page gutter and only half covers a card, so it reads as
+        // straddling the boundary instead of sitting on top of the forecast.
+        // The gutter is 32px from sm up, which is the width this needs.
+        back ? 'left-0 -translate-x-1/2' : 'right-0 translate-x-1/2',
       ].join(' ')}
     >
       <svg viewBox="0 0 20 20" className="size-4" aria-hidden="true">
@@ -208,12 +229,11 @@ function Arrow({ label, onClick, disabled, back = false }: ArrowProps) {
 
 interface DayProps {
   day: DailyForecast
-  share: string
   coldest: number
   warmest: number
 }
 
-function ForecastDay({ day, share, coldest, warmest }: DayProps) {
+function ForecastDay({ day, coldest, warmest }: DayProps) {
   const today = isToday(day.date)
   const condition = translateCondition(day.condition)
 
@@ -222,27 +242,20 @@ function ForecastDay({ day, share, coldest, warmest }: DayProps) {
   const width = ((day.maxTemperatureC - day.minTemperatureC) / span) * 100
 
   return (
-    // An even share of the track, floored at 140px and capped at 224px.
+    // CARD_BASIS is a seventh of the track and does not move with the range, so
+    // a week fills the row exactly and everything longer overflows — and that
+    // overflow IS the carousel, with the last visible card half cut off, the
+    // cheapest signal there is that the row keeps going. min-w-35 is the floor
+    // for narrow viewports, where even a week has to scroll.
     //
-    // One rule covering both halves of this component. When the range fits, the
-    // share is wider than the floor and the row reaches the same right edge as
-    // the panel above it, instead of stopping short and reading as a
-    // misalignment. When it does not, the floor wins, every card sits at 140px,
-    // the sum overflows — and that overflow IS the carousel, with the last
-    // visible card half cut off, the cheapest signal there is that the row keeps
-    // going.
-    //
-    // The cap is for the short answer: a degraded snapshot can carry four days,
-    // and four cards sharing 1216px would be 295px each, an icon and two numbers
-    // marooned in the middle of a billboard.
-    //
-    // starting:opacity-0 is what stops nine cards popping into existence at once
-    // when the range widens. @starting-style only applies to elements being
-    // inserted, so the days already on screen slide to their new width while
-    // only the new ones fade in — no list-transition library, no keys to track.
+    // starting:opacity-0 is the only motion left. @starting-style applies solely
+    // to elements being inserted, so the days already on screen are untouched
+    // and the new ones fade rather than blink into place — no list-transition
+    // library, no keys to track. Most of them arrive past the right edge anyway,
+    // which is the real reason widening the range now costs nothing to watch.
     <li
-      style={{ flexBasis: share }}
-      className="flex min-w-35 max-w-56 shrink-0 snap-start flex-col gap-2 rounded-card bg-surface px-4 py-4 text-center starting:opacity-0 motion-safe:transition-[flex-basis,opacity] motion-safe:duration-300 motion-safe:ease-out"
+      style={{ flexBasis: CARD_BASIS }}
+      className="flex min-w-35 shrink-0 snap-start flex-col gap-2 rounded-card bg-surface px-4 py-4 text-center starting:opacity-0 motion-safe:transition-opacity motion-safe:duration-300 motion-safe:ease-out"
     >
       {/*
         Today is marked by setting its name in the accent, not by a coloured rule

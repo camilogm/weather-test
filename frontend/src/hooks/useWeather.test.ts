@@ -12,7 +12,8 @@ vi.mock('../api/weather', async (importOriginal) => ({
   fetchCurrent: vi.fn(),
 }))
 
-const { WeatherApiError, fetchCurrent, fetchForecast } = await import('../api/weather')
+const { FORECAST_HORIZON_DAYS, WeatherApiError, fetchCurrent, fetchForecast } =
+  await import('../api/weather')
 const { useWeather } = await import('./useWeather')
 
 const forecastOf = vi.mocked(fetchForecast)
@@ -102,12 +103,24 @@ describe('useWeather', () => {
     expect(result.current.error?.kind).toBe('notFound')
   })
 
+  it('asks for the whole horizon, so narrowing the range is never a round trip', async () => {
+    // The range is a view concern here. Round-tripping to the server for days
+    // the browser could already be holding would fragment a warm answer over a
+    // control that is meant to feel instant.
+    forecastOf.mockResolvedValue(aForecastFor(sanSalvador))
+
+    renderHook(() => useWeather(sanSalvador))
+
+    await waitFor(() => expect(forecastOf).toHaveBeenCalled())
+    expect(forecastOf.mock.calls[0]?.[1]).toBe(FORECAST_HORIZON_DAYS)
+  })
+
   it('aborts the request in flight when it unmounts', async () => {
     const pending = deferred<Forecast>()
     forecastOf.mockReturnValue(pending.promise)
 
     const { unmount } = renderHook(() => useWeather(sanSalvador))
-    const signal = forecastOf.mock.calls[0]?.[1]
+    const signal = forecastOf.mock.calls[0]?.[2]
 
     expect(signal?.aborted).toBe(false)
     unmount()

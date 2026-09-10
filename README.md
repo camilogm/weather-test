@@ -1,7 +1,7 @@
 # WeatherService
 
-A .NET 8 microservice that serves current conditions and a seven-day forecast,
-plus a React front end that displays the week for **San Salvador**.
+A .NET 8 microservice that serves current conditions and up to sixteen days of
+forecast, plus a React front end that displays them for **San Salvador**.
 
 The interesting part is not fetching the weather. It is what happens when the
 upstream stops answering.
@@ -49,13 +49,35 @@ make web          # http://localhost:5173
 
 ### `GET /weather/forecast`
 
-Seven daily forecasts. Defaults to San Salvador.
+Daily forecasts from today forward. Defaults to San Salvador and to seven days.
 
 ```
 GET /weather/forecast
-GET /weather/forecast?city=Guatemala%20City
+GET /weather/forecast?days=16
+GET /weather/forecast?city=Guatemala%20City&days=14
 GET /weather/forecast?latitude=13.6929&longitude=-89.2182
 ```
+
+`days` runs from 1 to 16 and defaults to 7, which is what this endpoint answered
+before the parameter existed — no client that never heard of it sees its
+response change. Out of range is a `400` rather than a silent clamp: a caller
+that asked for thirty days and quietly got sixteen would have no way to know its
+request was not honoured.
+
+**The range never reaches the provider.** Every call fetches, caches and stores
+the whole sixteen-day horizon; `days` is a projection taken over that one
+answer. Fetching per range would put the range in the cache key, and a service
+already holding sixteen days would go back to the network to be asked for seven
+of them. It also means a single upstream call answers every range — and that a
+stored snapshot can back every range during an outage.
+
+The projection counts from today, not from index zero. A snapshot recorded three
+days ago still opens on the day it was taken, so slicing by index would replay
+days that are over and label them a forecast. The cutoff is deliberately one day
+looser than today: Open-Meteo's dates are local to the forecast location while
+the service clock is UTC, and a location far enough west runs a whole calendar
+day behind it. Keeping one finished day costs a card; dropping a live "today"
+costs the day people opened the page to see.
 
 ```jsonc
 {
@@ -114,7 +136,7 @@ named that" are different answers.
 | Status | When                                                             |
 | ------ | ---------------------------------------------------------------- |
 | `200`  | Data available — check `provenance` to see whether it is live     |
-| `400`  | Malformed query (half a coordinate pair, latitude out of range)   |
+| `400`  | Malformed query (half a pair, latitude or `days` out of range)   |
 | `404`  | No such city                                                     |
 | `429`  | Rate limit spent; includes `Retry-After`                         |
 | `503`  | Every source exhausted; includes `Retry-After`                   |
@@ -300,11 +322,17 @@ numbers:
 | `UsableFor`  | 3 days | How old a snapshot may be and still be **served**  |
 | `RetainFor`  | 7 days | How long a snapshot is **kept** before it is swept |
 
-`UsableFor` exists because a snapshot describes the seven days that followed the
-moment it was taken. Let it age far enough and every day in it has already
-happened — replaying that would dress up the past as a forecast, a `200` worse
-than the `503` it replaced. Serving something old is honest only while it is
-labelled old *and* still describes the future.
+`UsableFor` is no longer what stops the past being served — the projection drops
+days a snapshot has outlived before anything leaves the service. What it stops
+is the *future* being served from an old reading: a snapshot from last week
+still has days left in it, and they were forecast by a week-old model run.
+Serving something old is honest only while it is labelled old *and* still worth
+believing.
+
+Three days sits well inside the sixteen a snapshot carries, so there is room to
+widen it without the rows ever having been thrown away. That is a judgement
+about forecast quality rather than arithmetic, so it was left where it was
+rather than moved as a side effect of a longer horizon.
 
 `RetainFor` is the wider of the two so the serving window can be widened later
 without the rows having already been thrown away. Each write sweeps its own
@@ -548,9 +576,40 @@ backend reports `StaleCache` or `Historical`, the UI says so and shows when the
 data was taken. Showing a three-hour-old forecast as if it were current would be
 worse than showing nothing.
 
-**Responsive.** Mobile first: one column, then two at `sm`, four at `lg`, seven
-at `xl`. Icons are inline SVG drawn from theme tokens, so they follow light and
-dark without a second asset set. `prefers-reduced-motion` is respected.
+**The carousel.** Sixteen days do not fit a grid laid out for seven, and sixteen
+stacked rows on a phone is a lot of scrolling to reach next Tuesday. The cards
+sit on a scroll-snap track with a fixed width, so the last one on screen is half
+cut off and the row visibly keeps going.
+
+The scrolling is the browser's. A carousel built from transforms and an index
+has to re-implement touch momentum, trackpad gestures, keyboard paging and the
+focus ring following a card into view, and gets at least one of them wrong.
+`useCarousel` adds only what native scrolling has no opinion about: whether
+either direction is worth offering, and what one step means. It names no scroll
+behaviour, so a `motion-safe:` rule in the stylesheet is what turns the glide
+into a jump for anyone who asked their system to stop moving things.
+
+The track is a focusable, labelled region — a scrollable area that cannot be
+focused is unreachable by keyboard. The arrows are a pointer convenience: they
+appear only when something is off screen and are gone below `sm`, where the
+gesture is a swipe.
+
+**The range control** is native radios under the styling, not buttons carrying
+`aria-pressed`. The choice is exclusive and radios say so for free: arrow keys
+move between them, the group is one tab stop, and a screen reader announces "2
+of 3" rather than three unrelated toggles. It offers only ranges the data can
+fill, so a degraded answer carrying ten days ends the list at ten.
+
+The page asks the API for all sixteen days and slices them in the view. The
+endpoint trims server-side, which is the right contract for a caller that wants
+seven days and nothing more — but this page puts a range control in front of a
+person, and a control that waits on the network to redraw days the browser
+already holds is a spinner where there should be none. Sixteen days is about two
+kilobytes of JSON; the whole horizon costs less than the round trip it saves.
+
+**Responsive.** Mobile first. Icons are inline SVG drawn from theme tokens, so
+they follow light and dark without a second asset set. `prefers-reduced-motion`
+is respected.
 
 One subtlety worth knowing: the API sends plain calendar dates (`2026-09-07`).
 Passing one straight to `new Date()` parses it as UTC midnight, which in any
@@ -565,8 +624,11 @@ negative-offset timezone — San Salvador included — renders as *the day befor
 not seven; the 16-day daily endpoint is paid, and One Call 3.0 requires a payment
 method even for its free quota. It would have failed an explicit requirement, or
 forced a reviewer to register and hand over a card to run this. Open-Meteo needs
-no key and returns a native daily forecast well past seven days. `IWeatherProvider`
-is designed so a second adapter is a new class, not a refactor.
+no key and covers the whole sixteen-day horizon this service promises — verified
+against the live API, which answers `Allowed range 0 to 16` past that ceiling.
+`IWeatherProvider` is designed so a second adapter is a new class, not a
+refactor; one that reached further would let `ForecastHorizon.MaximumDays` rise
+without a single caller changing.
 
 **Three projects, not four.** Splitting `Domain` from `Application` would add a
 layer of indirection that two read endpoints cannot justify. The boundary that

@@ -4,5 +4,5 @@ namespace WeatherService.Application.Forecast;
 
 public interface IForecastService
 {
-    Task<ForecastResult> GetWeeklyForecastAsync(GeoLocation location, CancellationToken cancellationToken);
+    Task<ForecastResult> GetForecastAsync(GeoLocation location, CancellationToken cancellationToken);
 }

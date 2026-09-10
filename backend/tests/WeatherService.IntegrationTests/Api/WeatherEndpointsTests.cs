@@ -42,7 +42,7 @@ public sealed class WeatherEndpointsTests : IAsyncLifetime
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        var body = await response.Content.ReadFromJsonAsync<WeeklyForecastResponse>(Json);
+        var body = await response.Content.ReadFromJsonAsync<ForecastResponse>(Json);
         body!.Location.Name.Should().Be("San Salvador");
         body.Days.Should().HaveCount(7);
         body.Days[0].Condition.Should().Be("PartlyCloudy");
@@ -66,7 +66,7 @@ public sealed class WeatherEndpointsTests : IAsyncLifetime
     {
         var response = await _client.GetAsync("/weather/forecast?city=Guatemala%20City");
 
-        var body = await response.Content.ReadFromJsonAsync<WeeklyForecastResponse>(Json);
+        var body = await response.Content.ReadFromJsonAsync<ForecastResponse>(Json);
         body!.Location.Name.Should().Be("Guatemala City");
         body.Location.Latitude.Should().BeApproximately(14.6349, 0.0001);
     }
@@ -77,7 +77,7 @@ public sealed class WeatherEndpointsTests : IAsyncLifetime
         var response = await _client.GetAsync("/weather/forecast?latitude=13.6929&longitude=-89.2182");
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var body = await response.Content.ReadFromJsonAsync<WeeklyForecastResponse>(Json);
+        var body = await response.Content.ReadFromJsonAsync<ForecastResponse>(Json);
         body!.Location.Latitude.Should().BeApproximately(13.6929, 0.0001);
     }
 
@@ -119,7 +119,7 @@ public sealed class WeatherEndpointsTests : IAsyncLifetime
         response.Headers.GetValues("X-Weather-Degraded").Single().Should().Be("true");
         response.Headers.CacheControl!.NoStore.Should().BeTrue();
 
-        var body = await response.Content.ReadFromJsonAsync<WeeklyForecastResponse>(Json);
+        var body = await response.Content.ReadFromJsonAsync<ForecastResponse>(Json);
         body!.Provenance.Degraded.Should().BeTrue();
     }
 

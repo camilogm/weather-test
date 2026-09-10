@@ -5,7 +5,7 @@ namespace WeatherService.Application.Model;
 /// <see cref="RetrievedAt"/> is what lets a caller reason about staleness when
 /// the response is served from a degraded source.
 /// </summary>
-public sealed record WeeklyForecast(
+public sealed record ForecastSeries(
     GeoLocation Location,
     IReadOnlyList<DailyForecast> Days,
     DateTimeOffset RetrievedAt);

@@ -5,7 +5,7 @@ namespace WeatherService.Infrastructure.Persistence;
 /// <summary>
 /// The persistence shape of a stored forecast.
 ///
-/// Kept separate from <see cref="Application.Model.WeeklyForecast"/> on purpose:
+/// Kept separate from <see cref="Application.Model.ForecastSeries"/> on purpose:
 /// the domain model is an immutable record with no identity and no foreign keys,
 /// while this one needs a primary key, mutable setters and a navigation property
 /// for EF to work with. Letting EF dictate the shape of the domain is how the

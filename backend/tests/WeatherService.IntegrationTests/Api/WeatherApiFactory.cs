@@ -123,7 +123,7 @@ public sealed class FakeWeatherProvider : IWeatherProvider
 
     public int ForecastCalls { get; private set; }
 
-    public Task<WeeklyForecast> GetWeeklyForecastAsync(
+    public Task<ForecastSeries> GetForecastAsync(
         GeoLocation location,
         CancellationToken cancellationToken)
     {
@@ -144,7 +144,7 @@ public sealed class FakeWeatherProvider : IWeatherProvider
                 WeatherCondition.PartlyCloudy))
             .ToArray();
 
-        return Task.FromResult(new WeeklyForecast(location, days, Clock.GetUtcNow()));
+        return Task.FromResult(new ForecastSeries(location, days, Clock.GetUtcNow()));
     }
 
     public Task<CurrentWeather> GetCurrentWeatherAsync(

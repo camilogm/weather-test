@@ -63,22 +63,22 @@ public sealed class WeatherController : ControllerBase
 
     /// <summary>The next seven days for a city or an explicit coordinate pair.</summary>
     [HttpGet("forecast")]
-    [ProducesResponseType<WeeklyForecastResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ForecastResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status429TooManyRequests)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status503ServiceUnavailable)]
-    public async Task<ActionResult<WeeklyForecastResponse>> GetForecast(
+    public async Task<ActionResult<ForecastResponse>> GetForecast(
         [FromQuery] WeatherQuery query,
         CancellationToken cancellationToken)
     {
         var location = await ResolveAsync(query, cancellationToken);
-        var result = await _forecasts.GetWeeklyForecastAsync(location, cancellationToken);
+        var result = await _forecasts.GetForecastAsync(location, cancellationToken);
 
         var provenance = Declare(result.Source, result.IsDegraded, result.Forecast.RetrievedAt);
 
         return Ok(
-            new WeeklyForecastResponse(
+            new ForecastResponse(
                 result.Forecast.Location.ToResponse(),
                 provenance,
                 [.. result.Forecast.Days.Select(day => day.ToResponse())]));

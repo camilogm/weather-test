@@ -52,7 +52,7 @@ public sealed class EfForecastHistory : IForecastHistory
         _logger = logger;
     }
 
-    public async Task SaveAsync(WeeklyForecast forecast, CancellationToken cancellationToken)
+    public async Task SaveAsync(ForecastSeries forecast, CancellationToken cancellationToken)
     {
         _context.Forecasts.Add(ToSnapshot(forecast));
         await _context.SaveChangesAsync(cancellationToken);
@@ -65,7 +65,7 @@ public sealed class EfForecastHistory : IForecastHistory
         await PruneQuietlyAsync(forecast.Location, cancellationToken);
     }
 
-    public async Task<WeeklyForecast?> GetLatestAsync(
+    public async Task<ForecastSeries?> GetLatestAsync(
         GeoLocation location,
         CancellationToken cancellationToken)
     {
@@ -129,7 +129,7 @@ public sealed class EfForecastHistory : IForecastHistory
         }
     }
 
-    private static ForecastSnapshot ToSnapshot(WeeklyForecast forecast) =>
+    private static ForecastSnapshot ToSnapshot(ForecastSeries forecast) =>
         new()
         {
             Id = Guid.NewGuid(),
@@ -150,7 +150,7 @@ public sealed class EfForecastHistory : IForecastHistory
                 .ToList(),
         };
 
-    private static WeeklyForecast ToDomain(ForecastSnapshot snapshot) =>
+    private static ForecastSeries ToDomain(ForecastSnapshot snapshot) =>
         new(
             new GeoLocation(snapshot.LocationName, snapshot.Latitude, snapshot.Longitude),
             snapshot

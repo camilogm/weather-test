@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { aCurrentFor, aForecastFor, aPlace, deferred } from '../test/fixtures'
-import type { WeeklyForecast } from '../api/types'
+import type { Forecast } from '../api/types'
 
 // Partial mock: WeatherApiError has to stay the real class, because the hook
 // narrows on `instanceof` and a stubbed one would never match.
@@ -50,7 +50,7 @@ describe('useWeather', () => {
     })
     await waitFor(() => expect(result.current.status).toBe('ready'))
 
-    const pending = deferred<WeeklyForecast>()
+    const pending = deferred<Forecast>()
     forecastOf.mockReturnValue(pending.promise)
     rerender(guatemala)
 
@@ -59,8 +59,8 @@ describe('useWeather', () => {
   })
 
   it('discards a slow answer for a place that was already left behind', async () => {
-    const slow = deferred<WeeklyForecast>()
-    const fast = deferred<WeeklyForecast>()
+    const slow = deferred<Forecast>()
+    const fast = deferred<Forecast>()
 
     forecastOf.mockReturnValueOnce(slow.promise).mockReturnValueOnce(fast.promise)
 
@@ -103,7 +103,7 @@ describe('useWeather', () => {
   })
 
   it('aborts the request in flight when it unmounts', async () => {
-    const pending = deferred<WeeklyForecast>()
+    const pending = deferred<Forecast>()
     forecastOf.mockReturnValue(pending.promise)
 
     const { unmount } = renderHook(() => useWeather(sanSalvador))
@@ -123,7 +123,7 @@ describe('useWeather', () => {
     const { result } = renderHook(() => useWeather(sanSalvador))
     await waitFor(() => expect(result.current.status).toBe('ready'))
 
-    const pending = deferred<WeeklyForecast>()
+    const pending = deferred<Forecast>()
     forecastOf.mockReturnValue(pending.promise)
 
     await act(async () => result.current.refresh())

@@ -28,7 +28,7 @@ export interface DailyForecast {
   icon: WeatherIconName
 }
 
-export interface WeeklyForecast {
+export interface Forecast {
   location: WeatherLocation
   provenance: Provenance
   days: DailyForecast[]

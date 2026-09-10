@@ -50,7 +50,7 @@ public class OpenMeteoWeatherProviderTests
         var handler = StubHttpMessageHandler.Returning(HttpStatusCode.OK, ValidForecastPayload);
 
         var forecast = await CreateSut(handler)
-            .GetWeeklyForecastAsync(SanSalvador, CancellationToken.None);
+            .GetForecastAsync(SanSalvador, CancellationToken.None);
 
         forecast.Days.Should().HaveCount(7);
         forecast.Location.Name.Should().Be("San Salvador");
@@ -66,7 +66,7 @@ public class OpenMeteoWeatherProviderTests
     {
         var handler = StubHttpMessageHandler.Returning(HttpStatusCode.OK, ValidForecastPayload);
 
-        await CreateSut(handler).GetWeeklyForecastAsync(SanSalvador, CancellationToken.None);
+        await CreateSut(handler).GetForecastAsync(SanSalvador, CancellationToken.None);
 
         var query = handler.Requests.Single().RequestUri!.Query;
         query.Should().Contain("latitude=13.6929");
@@ -107,7 +107,7 @@ public class OpenMeteoWeatherProviderTests
     {
         var handler = StubHttpMessageHandler.Returning(status, "upstream is unhappy");
 
-        var act = () => CreateSut(handler).GetWeeklyForecastAsync(SanSalvador, CancellationToken.None);
+        var act = () => CreateSut(handler).GetForecastAsync(SanSalvador, CancellationToken.None);
 
         await act.Should()
             .ThrowAsync<WeatherProviderException>()
@@ -119,7 +119,7 @@ public class OpenMeteoWeatherProviderTests
     {
         var handler = StubHttpMessageHandler.Returning(HttpStatusCode.OK, "<html>maintenance</html>");
 
-        var act = () => CreateSut(handler).GetWeeklyForecastAsync(SanSalvador, CancellationToken.None);
+        var act = () => CreateSut(handler).GetForecastAsync(SanSalvador, CancellationToken.None);
 
         await act.Should().ThrowAsync<WeatherProviderException>();
     }
@@ -129,7 +129,7 @@ public class OpenMeteoWeatherProviderTests
     {
         var handler = StubHttpMessageHandler.Returning(HttpStatusCode.OK, """{"latitude":13.7}""");
 
-        var act = () => CreateSut(handler).GetWeeklyForecastAsync(SanSalvador, CancellationToken.None);
+        var act = () => CreateSut(handler).GetForecastAsync(SanSalvador, CancellationToken.None);
 
         await act.Should().ThrowAsync<WeatherProviderException>();
     }
@@ -152,7 +152,7 @@ public class OpenMeteoWeatherProviderTests
             """;
         var handler = StubHttpMessageHandler.Returning(HttpStatusCode.OK, truncated);
 
-        var act = () => CreateSut(handler).GetWeeklyForecastAsync(SanSalvador, CancellationToken.None);
+        var act = () => CreateSut(handler).GetForecastAsync(SanSalvador, CancellationToken.None);
 
         await act.Should().ThrowAsync<WeatherProviderException>();
     }
@@ -162,7 +162,7 @@ public class OpenMeteoWeatherProviderTests
     {
         var handler = StubHttpMessageHandler.Throwing(new HttpRequestException("connection reset"));
 
-        var act = () => CreateSut(handler).GetWeeklyForecastAsync(SanSalvador, CancellationToken.None);
+        var act = () => CreateSut(handler).GetForecastAsync(SanSalvador, CancellationToken.None);
 
         await act.Should().ThrowAsync<WeatherProviderException>();
     }
@@ -177,7 +177,7 @@ public class OpenMeteoWeatherProviderTests
         using var cancelled = new CancellationTokenSource();
         await cancelled.CancelAsync();
 
-        var act = () => CreateSut(handler).GetWeeklyForecastAsync(SanSalvador, cancelled.Token);
+        var act = () => CreateSut(handler).GetForecastAsync(SanSalvador, cancelled.Token);
 
         await act.Should().ThrowAsync<OperationCanceledException>();
     }

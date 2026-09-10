@@ -12,7 +12,7 @@ namespace WeatherService.Application.Ports;
 public interface IForecastHistory
 {
     /// <summary>Records a live forecast so it can be replayed during an outage.</summary>
-    Task SaveAsync(WeeklyForecast forecast, CancellationToken cancellationToken);
+    Task SaveAsync(ForecastSeries forecast, CancellationToken cancellationToken);
 
     /// <summary>
     /// The most recently stored forecast for a location that is still recent
@@ -24,5 +24,5 @@ public interface IForecastHistory
     /// future at all. Returning it would end the degradation chain with a
     /// confident answer about days that have already happened.
     /// </summary>
-    Task<WeeklyForecast?> GetLatestAsync(GeoLocation location, CancellationToken cancellationToken);
+    Task<ForecastSeries?> GetLatestAsync(GeoLocation location, CancellationToken cancellationToken);
 }

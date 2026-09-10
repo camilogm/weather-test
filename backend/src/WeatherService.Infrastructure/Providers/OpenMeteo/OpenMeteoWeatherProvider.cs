@@ -48,7 +48,7 @@ public sealed class OpenMeteoWeatherProvider : IWeatherProvider
 
     public string Name => ProviderName;
 
-    public async Task<WeeklyForecast> GetWeeklyForecastAsync(
+    public async Task<ForecastSeries> GetForecastAsync(
         GeoLocation location,
         CancellationToken cancellationToken)
     {
@@ -62,7 +62,7 @@ public sealed class OpenMeteoWeatherProvider : IWeatherProvider
         var payload = await GetAsync<OpenMeteoForecastResponse>(url, cancellationToken);
         var daily = payload.Daily ?? throw Malformed("the response carried no daily block");
 
-        return new WeeklyForecast(location, ToDays(daily), _clock.GetUtcNow());
+        return new ForecastSeries(location, ToDays(daily), _clock.GetUtcNow());
     }
 
     public async Task<CurrentWeather> GetCurrentWeatherAsync(

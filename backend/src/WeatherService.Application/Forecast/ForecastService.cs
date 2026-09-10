@@ -40,12 +40,12 @@ public sealed class ForecastService : IForecastService
         _logger = logger;
     }
 
-    public async Task<ForecastResult> GetWeeklyForecastAsync(
+    public async Task<ForecastResult> GetForecastAsync(
         GeoLocation location,
         CancellationToken cancellationToken)
     {
         var key = CacheKeyFor(location);
-        var cached = _cache.Get<WeeklyForecast>(key);
+        var cached = _cache.Get<ForecastSeries>(key);
 
         if (cached is not null && cached.IsFresh(_clock.GetUtcNow()))
         {
@@ -55,7 +55,7 @@ public sealed class ForecastService : IForecastService
 
         try
         {
-            var forecast = await _provider.GetWeeklyForecastAsync(location, cancellationToken);
+            var forecast = await _provider.GetForecastAsync(location, cancellationToken);
 
             _cache.Set(key, forecast, FreshFor, KeepFor);
             await PersistQuietlyAsync(forecast, cancellationToken);
@@ -85,7 +85,7 @@ public sealed class ForecastService : IForecastService
     /// </summary>
     private async Task<ForecastResult> DegradeAsync(
         GeoLocation location,
-        CachedValue<WeeklyForecast>? cached,
+        CachedValue<ForecastSeries>? cached,
         WeatherProviderException cause,
         CancellationToken cancellationToken)
     {
@@ -117,7 +117,7 @@ public sealed class ForecastService : IForecastService
     /// Recording history is a side effect of answering, not part of the answer.
     /// A database outage must not turn a perfectly good forecast into a 500.
     /// </summary>
-    private async Task PersistQuietlyAsync(WeeklyForecast forecast, CancellationToken cancellationToken)
+    private async Task PersistQuietlyAsync(ForecastSeries forecast, CancellationToken cancellationToken)
     {
         try
         {
@@ -137,7 +137,7 @@ public sealed class ForecastService : IForecastService
     /// left to serve, and the caller deserves that answer rather than an
     /// unrelated exception type leaking out as a 500.
     /// </summary>
-    private async Task<WeeklyForecast?> ReadHistoryQuietlyAsync(
+    private async Task<ForecastSeries?> ReadHistoryQuietlyAsync(
         GeoLocation location,
         CancellationToken cancellationToken)
     {

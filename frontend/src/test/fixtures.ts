@@ -1,9 +1,4 @@
-import type {
-  CurrentWeather,
-  LocationSuggestion,
-  SelectedLocation,
-  WeeklyForecast,
-} from '../api/types'
+import type { CurrentWeather, Forecast, LocationSuggestion, SelectedLocation } from '../api/types'
 
 const PROVENANCE = { source: 'Provider', degraded: false, retrievedAt: '2026-09-07T12:00:00Z' } as const
 
@@ -11,7 +6,7 @@ export function aPlace(name: string, latitude = 13.69, longitude = -89.22): Sele
   return { name, latitude, longitude }
 }
 
-export function aForecastFor(place: SelectedLocation): WeeklyForecast {
+export function aForecastFor(place: SelectedLocation): Forecast {
   return {
     location: place,
     provenance: { ...PROVENANCE },

@@ -15,7 +15,7 @@ public interface IWeatherProvider
     /// <summary>Human-readable id used in logs and diagnostics.</summary>
     string Name { get; }
 
-    Task<WeeklyForecast> GetWeeklyForecastAsync(GeoLocation location, CancellationToken cancellationToken);
+    Task<ForecastSeries> GetForecastAsync(GeoLocation location, CancellationToken cancellationToken);
 
     Task<CurrentWeather> GetCurrentWeatherAsync(GeoLocation location, CancellationToken cancellationToken);
 }

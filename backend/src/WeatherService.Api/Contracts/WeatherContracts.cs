@@ -44,7 +44,7 @@ public sealed record DailyForecastResponse(
     string Condition,
     string Icon);
 
-public sealed record WeeklyForecastResponse(
+public sealed record ForecastResponse(
     LocationResponse Location,
     ProvenanceResponse Provenance,
     IReadOnlyList<DailyForecastResponse> Days);

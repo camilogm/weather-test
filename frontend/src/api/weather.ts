@@ -1,9 +1,9 @@
 import type {
   CurrentWeather,
+  Forecast,
   LocationSearchResponse,
   LocationSuggestion,
   SelectedLocation,
-  WeeklyForecast,
 } from './types'
 
 /**
@@ -108,8 +108,8 @@ function locationQuery(location: SelectedLocation): string {
 export function fetchForecast(
   location: SelectedLocation,
   signal?: AbortSignal,
-): Promise<WeeklyForecast> {
-  return get<WeeklyForecast>(`/weather/forecast${locationQuery(location)}`, signal)
+): Promise<Forecast> {
+  return get<Forecast>(`/weather/forecast${locationQuery(location)}`, signal)
 }
 
 export function fetchCurrent(

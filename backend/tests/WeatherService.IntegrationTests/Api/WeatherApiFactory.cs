@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Time.Testing;
 using WeatherService.Api.RateLimiting;
+using WeatherService.Application.Forecast;
 using WeatherService.Application.Model;
 using WeatherService.Application.Ports;
 using WeatherService.Infrastructure.Persistence;
@@ -123,7 +124,7 @@ public sealed class FakeWeatherProvider : IWeatherProvider
 
     public int ForecastCalls { get; private set; }
 
-    public Task<WeeklyForecast> GetWeeklyForecastAsync(
+    public Task<ForecastSeries> GetForecastAsync(
         GeoLocation location,
         CancellationToken cancellationToken)
     {
@@ -134,9 +135,12 @@ public sealed class FakeWeatherProvider : IWeatherProvider
             throw new WeatherProviderException(Name, "the upstream is down");
         }
 
+        // The whole horizon, like the real adapter. A fake that answered the
+        // requested range instead would quietly hide the fact that the range
+        // never reaches a provider at all.
         var start = new DateOnly(2026, 9, 7);
         var days = Enumerable
-            .Range(0, 7)
+            .Range(0, ForecastHorizon.MaximumDays)
             .Select(offset => new DailyForecast(
                 start.AddDays(offset),
                 21.0 + offset,
@@ -144,7 +148,7 @@ public sealed class FakeWeatherProvider : IWeatherProvider
                 WeatherCondition.PartlyCloudy))
             .ToArray();
 
-        return Task.FromResult(new WeeklyForecast(location, days, Clock.GetUtcNow()));
+        return Task.FromResult(new ForecastSeries(location, days, Clock.GetUtcNow()));
     }
 
     public Task<CurrentWeather> GetCurrentWeatherAsync(

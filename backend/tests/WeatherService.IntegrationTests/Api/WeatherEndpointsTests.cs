@@ -4,6 +4,7 @@ using System.Text.Json;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using WeatherService.Api.Contracts;
+using WeatherService.Application.Forecast;
 
 namespace WeatherService.IntegrationTests.Api;
 
@@ -42,7 +43,7 @@ public sealed class WeatherEndpointsTests : IAsyncLifetime
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        var body = await response.Content.ReadFromJsonAsync<WeeklyForecastResponse>(Json);
+        var body = await response.Content.ReadFromJsonAsync<ForecastResponse>(Json);
         body!.Location.Name.Should().Be("San Salvador");
         body.Days.Should().HaveCount(7);
         body.Days[0].Condition.Should().Be("PartlyCloudy");
@@ -66,7 +67,7 @@ public sealed class WeatherEndpointsTests : IAsyncLifetime
     {
         var response = await _client.GetAsync("/weather/forecast?city=Guatemala%20City");
 
-        var body = await response.Content.ReadFromJsonAsync<WeeklyForecastResponse>(Json);
+        var body = await response.Content.ReadFromJsonAsync<ForecastResponse>(Json);
         body!.Location.Name.Should().Be("Guatemala City");
         body.Location.Latitude.Should().BeApproximately(14.6349, 0.0001);
     }
@@ -77,7 +78,7 @@ public sealed class WeatherEndpointsTests : IAsyncLifetime
         var response = await _client.GetAsync("/weather/forecast?latitude=13.6929&longitude=-89.2182");
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var body = await response.Content.ReadFromJsonAsync<WeeklyForecastResponse>(Json);
+        var body = await response.Content.ReadFromJsonAsync<ForecastResponse>(Json);
         body!.Location.Latitude.Should().BeApproximately(13.6929, 0.0001);
     }
 
@@ -92,7 +93,7 @@ public sealed class WeatherEndpointsTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Forecast_records_every_live_answer_in_the_database()
+    public async Task Forecast_records_the_whole_horizon_not_the_range_that_was_asked_for()
     {
         await _client.GetAsync("/weather/forecast");
 
@@ -100,7 +101,61 @@ public sealed class WeatherEndpointsTests : IAsyncLifetime
         var stored = await database.Forecasts.Include(snapshot => snapshot.Days).SingleAsync();
 
         stored.LocationName.Should().Be("San Salvador");
-        stored.Days.Should().HaveCount(7);
+        stored.Days.Should().HaveCount(ForecastHorizon.MaximumDays);
+    }
+
+    // --------------------------------------------------------------------- range
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(10)]
+    [InlineData(14)]
+    [InlineData(16)]
+    public async Task Forecast_extends_to_the_number_of_days_asked_for(int days)
+    {
+        var response = await _client.GetAsync($"/weather/forecast?days={days}");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var body = await response.Content.ReadFromJsonAsync<ForecastResponse>(Json);
+        body!.Days.Should().HaveCount(days);
+    }
+
+    /// <summary>
+    /// The claim the whole design rests on: the range is a projection, so asking
+    /// for a different one costs nothing upstream.
+    /// </summary>
+    [Fact]
+    public async Task Forecast_answers_every_range_from_a_single_upstream_call()
+    {
+        await _client.GetAsync("/weather/forecast?days=7");
+        var response = await _client.GetAsync($"/weather/forecast?days={ForecastHorizon.MaximumDays}");
+
+        _factory.Provider.ForecastCalls.Should().Be(1);
+        response.Headers.GetValues("X-Weather-Data-Source").Single().Should().Be("Cache");
+
+        var body = await response.Content.ReadFromJsonAsync<ForecastResponse>(Json);
+        body!.Days.Should().HaveCount(ForecastHorizon.MaximumDays);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-3)]
+    [InlineData(17)]
+    [InlineData(365)]
+    public async Task Forecast_rejects_a_range_this_service_cannot_answer(int days)
+    {
+        var response = await _client.GetAsync($"/weather/forecast?days={days}");
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        _factory.Provider.ForecastCalls.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Forecast_rejects_a_range_that_is_not_a_number()
+    {
+        var response = await _client.GetAsync("/weather/forecast?days=fortnight");
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
     // ------------------------------------------------------------------ degrading
@@ -119,7 +174,7 @@ public sealed class WeatherEndpointsTests : IAsyncLifetime
         response.Headers.GetValues("X-Weather-Degraded").Single().Should().Be("true");
         response.Headers.CacheControl!.NoStore.Should().BeTrue();
 
-        var body = await response.Content.ReadFromJsonAsync<WeeklyForecastResponse>(Json);
+        var body = await response.Content.ReadFromJsonAsync<ForecastResponse>(Json);
         body!.Provenance.Degraded.Should().BeTrue();
     }
 

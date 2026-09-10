@@ -111,7 +111,7 @@ public sealed class CircuitBreakerTests : IAsyncLifetime
         await Task.Delay(TimeSpan.FromMilliseconds(1_500)); // let the break elapse
 
         // Half-open: this trial call is allowed through, succeeds, and closes the circuit.
-        var forecast = await provider.GetWeeklyForecastAsync(SanSalvador, CancellationToken.None);
+        var forecast = await provider.GetForecastAsync(SanSalvador, CancellationToken.None);
 
         forecast.Days.Should().HaveCount(7);
     }
@@ -187,7 +187,7 @@ public sealed class CircuitBreakerTests : IAsyncLifetime
             resilience.RetryDelay = TimeSpan.FromMilliseconds(10);
         });
 
-        var forecast = await provider.GetWeeklyForecastAsync(SanSalvador, CancellationToken.None);
+        var forecast = await provider.GetForecastAsync(SanSalvador, CancellationToken.None);
 
         forecast.Days.Should().HaveCount(7);
         _upstream.LogEntries.Should().HaveCount(2, "the first attempt failed and the retry succeeded");
@@ -221,7 +221,7 @@ public sealed class CircuitBreakerTests : IAsyncLifetime
 
     private static async Task ExpectProviderFailure(IWeatherProvider provider)
     {
-        var act = () => provider.GetWeeklyForecastAsync(SanSalvador, CancellationToken.None);
+        var act = () => provider.GetForecastAsync(SanSalvador, CancellationToken.None);
         await act.Should().ThrowAsync<WeatherProviderException>();
     }
 }

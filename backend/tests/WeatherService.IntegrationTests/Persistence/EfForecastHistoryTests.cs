@@ -226,7 +226,7 @@ public sealed class EfForecastHistoryTests : IAsyncLifetime
         _context.ChangeTracker.Clear();
     }
 
-    private static WeeklyForecast AForecastFor(GeoLocation location, DateTimeOffset retrievedAt) =>
+    private static ForecastSeries AForecastFor(GeoLocation location, DateTimeOffset retrievedAt) =>
         new(
             location,
             Enumerable

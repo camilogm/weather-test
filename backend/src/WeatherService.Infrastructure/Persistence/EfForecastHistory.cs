@@ -22,10 +22,17 @@ public sealed class EfForecastHistory : IForecastHistory
     /// <summary>
     /// How long a stored snapshot may still be replayed to a caller.
     ///
-    /// A snapshot describes the seven days that followed the moment it was taken.
-    /// Let it age far enough and every day in it has already happened, and the
-    /// last rung of the degradation chain starts dressing up the past as a
-    /// forecast — a 200 that is worse than the 503 it replaced.
+    /// A snapshot describes the sixteen days that followed the moment it was
+    /// taken, and the days it has outlived are dropped on the way out. So this
+    /// is no longer what stops the past being served — that is the projection's
+    /// job now — but what stops the FUTURE being served from an old reading: a
+    /// snapshot from last week still has days left in it, and they were forecast
+    /// with a week-old model run.
+    ///
+    /// Three days is well inside the sixteen the snapshot carries, so there is
+    /// room to widen this without ever having thrown the rows away. That is a
+    /// judgement about forecast quality, not about arithmetic, so it is left
+    /// where it was rather than moved as a side effect of a longer horizon.
     /// </summary>
     public static readonly TimeSpan UsableFor = TimeSpan.FromDays(3);
 
@@ -52,7 +59,7 @@ public sealed class EfForecastHistory : IForecastHistory
         _logger = logger;
     }
 
-    public async Task SaveAsync(WeeklyForecast forecast, CancellationToken cancellationToken)
+    public async Task SaveAsync(ForecastSeries forecast, CancellationToken cancellationToken)
     {
         _context.Forecasts.Add(ToSnapshot(forecast));
         await _context.SaveChangesAsync(cancellationToken);
@@ -65,7 +72,7 @@ public sealed class EfForecastHistory : IForecastHistory
         await PruneQuietlyAsync(forecast.Location, cancellationToken);
     }
 
-    public async Task<WeeklyForecast?> GetLatestAsync(
+    public async Task<ForecastSeries?> GetLatestAsync(
         GeoLocation location,
         CancellationToken cancellationToken)
     {
@@ -129,7 +136,7 @@ public sealed class EfForecastHistory : IForecastHistory
         }
     }
 
-    private static ForecastSnapshot ToSnapshot(WeeklyForecast forecast) =>
+    private static ForecastSnapshot ToSnapshot(ForecastSeries forecast) =>
         new()
         {
             Id = Guid.NewGuid(),
@@ -150,7 +157,7 @@ public sealed class EfForecastHistory : IForecastHistory
                 .ToList(),
         };
 
-    private static WeeklyForecast ToDomain(ForecastSnapshot snapshot) =>
+    private static ForecastSeries ToDomain(ForecastSnapshot snapshot) =>
         new(
             new GeoLocation(snapshot.LocationName, snapshot.Latitude, snapshot.Longitude),
             snapshot

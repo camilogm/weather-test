@@ -3,15 +3,17 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Polly;
+using WeatherService.Application.Forecast;
 using WeatherService.Application.Model;
 using WeatherService.Application.Ports;
 
 namespace WeatherService.Infrastructure.Providers.OpenMeteo;
 
 /// <summary>
-/// Adapter for Open-Meteo, chosen because it needs no API key and returns a full
-/// daily forecast well past seven days — the reviewer can run this service
-/// without registering anywhere.
+/// Adapter for Open-Meteo, chosen because it needs no API key and covers the
+/// whole horizon this service promises — sixteen daily entries, which is that
+/// endpoint's own ceiling — so the reviewer can run this without registering
+/// anywhere.
 ///
 /// The class knows nothing about retries, timeouts or circuit breakers. Those
 /// wrap this client from the outside, at the composition root, because they are
@@ -25,10 +27,15 @@ public sealed class OpenMeteoWeatherProvider : IWeatherProvider
     public const string ProviderName = "open-meteo";
 
     /// <summary>
-    /// Not a tuning knob: the brief asks for a week, and the domain models a
-    /// week. A configurable value here would only invite drift.
+    /// Still not a tuning knob, but no longer a week either.
+    ///
+    /// The adapter fetches the service's whole horizon on every call and never
+    /// the range a caller asked for. That is what lets one cached answer satisfy
+    /// every range, and one stored snapshot back every range during an outage.
+    /// The number itself belongs to <see cref="ForecastHorizon"/>, which is
+    /// where the promise to callers is written down.
     /// </summary>
-    private const int ForecastDays = 7;
+    private const int ForecastDays = ForecastHorizon.MaximumDays;
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -48,7 +55,7 @@ public sealed class OpenMeteoWeatherProvider : IWeatherProvider
 
     public string Name => ProviderName;
 
-    public async Task<WeeklyForecast> GetWeeklyForecastAsync(
+    public async Task<ForecastSeries> GetForecastAsync(
         GeoLocation location,
         CancellationToken cancellationToken)
     {
@@ -62,7 +69,7 @@ public sealed class OpenMeteoWeatherProvider : IWeatherProvider
         var payload = await GetAsync<OpenMeteoForecastResponse>(url, cancellationToken);
         var daily = payload.Daily ?? throw Malformed("the response carried no daily block");
 
-        return new WeeklyForecast(location, ToDays(daily), _clock.GetUtcNow());
+        return new ForecastSeries(location, ToDays(daily), _clock.GetUtcNow());
     }
 
     public async Task<CurrentWeather> GetCurrentWeatherAsync(

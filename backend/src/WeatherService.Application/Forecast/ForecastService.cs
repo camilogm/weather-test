@@ -9,6 +9,10 @@ namespace WeatherService.Application.Forecast;
 ///
 ///     fresh cache -> provider -> stale cache -> history -> give up
 ///
+/// Every rung of that chain deals in the service's whole horizon. The range a
+/// caller asked for is applied once, at the end, as a projection — which is what
+/// lets one fetch, one cache entry and one stored snapshot answer every range.
+///
 /// It performs no I/O of its own; every outbound call goes through a port, which
 /// is why the whole chain is exercised by unit tests with no network, clock or
 /// database in sight. Resilience mechanics (timeout, retry, circuit breaker) are
@@ -40,12 +44,37 @@ public sealed class ForecastService : IForecastService
         _logger = logger;
     }
 
-    public async Task<ForecastResult> GetWeeklyForecastAsync(
+    public async Task<ForecastResult> GetForecastAsync(
+        GeoLocation location,
+        int days,
+        CancellationToken cancellationToken)
+    {
+        var found = await FindAsync(location, cancellationToken);
+        var upcoming = found.Forecast.Upcoming(days, _clock.GetUtcNow());
+
+        // Every day the series holds is already over. Unreachable while the
+        // history's usability window stays narrower than the horizon, and kept
+        // regardless: an empty list rendered as a forecast is a confident answer
+        // about nothing, and the caller is owed the honest 503 instead.
+        if (upcoming.Days.Count == 0)
+        {
+            throw new ForecastUnavailableException(location);
+        }
+
+        return found with { Forecast = upcoming };
+    }
+
+    /// <summary>
+    /// Walks the degradation chain and returns the whole horizon from whichever
+    /// rung answers first. It knows nothing about ranges — trimming happens once,
+    /// above, so no source can be tempted to store or cache a trimmed series.
+    /// </summary>
+    private async Task<ForecastResult> FindAsync(
         GeoLocation location,
         CancellationToken cancellationToken)
     {
         var key = CacheKeyFor(location);
-        var cached = _cache.Get<WeeklyForecast>(key);
+        var cached = _cache.Get<ForecastSeries>(key);
 
         if (cached is not null && cached.IsFresh(_clock.GetUtcNow()))
         {
@@ -55,7 +84,7 @@ public sealed class ForecastService : IForecastService
 
         try
         {
-            var forecast = await _provider.GetWeeklyForecastAsync(location, cancellationToken);
+            var forecast = await _provider.GetForecastAsync(location, cancellationToken);
 
             _cache.Set(key, forecast, FreshFor, KeepFor);
             await PersistQuietlyAsync(forecast, cancellationToken);
@@ -85,7 +114,7 @@ public sealed class ForecastService : IForecastService
     /// </summary>
     private async Task<ForecastResult> DegradeAsync(
         GeoLocation location,
-        CachedValue<WeeklyForecast>? cached,
+        CachedValue<ForecastSeries>? cached,
         WeatherProviderException cause,
         CancellationToken cancellationToken)
     {
@@ -117,7 +146,7 @@ public sealed class ForecastService : IForecastService
     /// Recording history is a side effect of answering, not part of the answer.
     /// A database outage must not turn a perfectly good forecast into a 500.
     /// </summary>
-    private async Task PersistQuietlyAsync(WeeklyForecast forecast, CancellationToken cancellationToken)
+    private async Task PersistQuietlyAsync(ForecastSeries forecast, CancellationToken cancellationToken)
     {
         try
         {
@@ -137,7 +166,7 @@ public sealed class ForecastService : IForecastService
     /// left to serve, and the caller deserves that answer rather than an
     /// unrelated exception type leaking out as a 500.
     /// </summary>
-    private async Task<WeeklyForecast?> ReadHistoryQuietlyAsync(
+    private async Task<ForecastSeries?> ReadHistoryQuietlyAsync(
         GeoLocation location,
         CancellationToken cancellationToken)
     {
@@ -152,5 +181,10 @@ public sealed class ForecastService : IForecastService
         }
     }
 
-    private static string CacheKeyFor(GeoLocation location) => $"forecast:weekly:{location.Key}";
+    /// <summary>
+    /// Keyed on the location alone. Folding the requested range in would split
+    /// one warm entry into one per range, and a service already holding sixteen
+    /// days would go back to the network to be asked for seven of them.
+    /// </summary>
+    private static string CacheKeyFor(GeoLocation location) => $"forecast:{location.Key}";
 }

@@ -1,9 +1,9 @@
 import type {
   CurrentWeather,
+  Forecast,
   LocationSearchResponse,
   LocationSuggestion,
   SelectedLocation,
-  WeeklyForecast,
 } from './types'
 
 /**
@@ -32,6 +32,22 @@ export const DEFAULT_LOCATION: SelectedLocation = {
 
 /** Below this the query matches too much to be worth asking the server about. */
 export const MIN_QUERY_LENGTH = 2
+
+/**
+ * How many days this client asks for, always.
+ *
+ * The API takes a `days` range and trims server-side, which is the right
+ * contract for a caller that wants seven days and nothing more. This page is
+ * not that caller: it puts a range control in front of the person, and a range
+ * control that waits on the network to redraw days the browser is already
+ * holding is a spinner where there should be none.
+ *
+ * So the range is applied in the view instead. Sixteen days is roughly two
+ * kilobytes of JSON — the whole horizon costs less than the round trip saved.
+ * Must not exceed ForecastHorizon.MaximumDays on the server, which answers 400
+ * rather than clamping.
+ */
+export const FORECAST_HORIZON_DAYS = 16
 
 /**
  * What went wrong, as a category rather than a sentence.
@@ -107,9 +123,10 @@ function locationQuery(location: SelectedLocation): string {
 
 export function fetchForecast(
   location: SelectedLocation,
+  days: number,
   signal?: AbortSignal,
-): Promise<WeeklyForecast> {
-  return get<WeeklyForecast>(`/weather/forecast${locationQuery(location)}`, signal)
+): Promise<Forecast> {
+  return get<Forecast>(`/weather/forecast${locationQuery(location)}&days=${days}`, signal)
 }
 
 export function fetchCurrent(

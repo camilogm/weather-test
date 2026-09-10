@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 
 import { useAsyncResource } from './useAsyncResource'
-import { WeatherApiError, fetchCurrent, fetchForecast } from '../api/weather'
+import { FORECAST_HORIZON_DAYS, WeatherApiError, fetchCurrent, fetchForecast } from '../api/weather'
 import type { SelectedLocation } from '../api/types'
 
 type Status = 'loading' | 'ready' | 'error'
@@ -29,7 +29,7 @@ export function useWeather(location: SelectedLocation) {
     // Two independent endpoints, so they go out together. Awaited in sequence
     // the page would wait for the sum of both round trips to show either.
     const [forecast, current] = await Promise.all([
-      fetchForecast(target, signal),
+      fetchForecast(target, FORECAST_HORIZON_DAYS, signal),
       // Best effort: the page still works without it.
       fetchCurrent(target, signal).catch(() => null),
     ])

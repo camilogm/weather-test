@@ -39,14 +39,14 @@ public class ForecastServiceTests
     {
         GivenNothingCached();
         _provider
-            .GetWeeklyForecastAsync(SanSalvador, Arg.Any<CancellationToken>())
+            .GetForecastAsync(SanSalvador, Arg.Any<CancellationToken>())
             .Returns(AForecastFor(SanSalvador));
 
-        var result = await CreateSut().GetWeeklyForecastAsync(SanSalvador, CancellationToken.None);
+        var result = await CreateSut().GetForecastAsync(SanSalvador, ForecastHorizon.DefaultDays, CancellationToken.None);
 
         result.Source.Should().Be(WeatherDataSource.Provider);
         result.IsDegraded.Should().BeFalse();
-        result.Forecast.Days.Should().HaveCount(7);
+        result.Forecast.Days.Should().HaveCount(ForecastHorizon.DefaultDays);
         result.Forecast.Location.Name.Should().Be("San Salvador");
     }
 
@@ -55,12 +55,12 @@ public class ForecastServiceTests
     {
         GivenCached(AForecastFor(SanSalvador), freshFor: TimeSpan.FromMinutes(10));
 
-        var result = await CreateSut().GetWeeklyForecastAsync(SanSalvador, CancellationToken.None);
+        var result = await CreateSut().GetForecastAsync(SanSalvador, ForecastHorizon.DefaultDays, CancellationToken.None);
 
         result.Source.Should().Be(WeatherDataSource.Cache);
         await _provider
             .DidNotReceiveWithAnyArgs()
-            .GetWeeklyForecastAsync(default!, default);
+            .GetForecastAsync(default!, default);
     }
 
     [Fact]
@@ -69,10 +69,10 @@ public class ForecastServiceTests
         GivenNothingCached();
         var forecast = AForecastFor(SanSalvador);
         _provider
-            .GetWeeklyForecastAsync(SanSalvador, Arg.Any<CancellationToken>())
+            .GetForecastAsync(SanSalvador, Arg.Any<CancellationToken>())
             .Returns(forecast);
 
-        await CreateSut().GetWeeklyForecastAsync(SanSalvador, CancellationToken.None);
+        await CreateSut().GetForecastAsync(SanSalvador, ForecastHorizon.DefaultDays, CancellationToken.None);
 
         await _history.Received(1).SaveAsync(forecast, Arg.Any<CancellationToken>());
     }
@@ -87,11 +87,12 @@ public class ForecastServiceTests
         _clock.Advance(TimeSpan.FromMinutes(30)); // the entry is kept, but no longer fresh
         GivenTheProviderIsDown();
 
-        var result = await CreateSut().GetWeeklyForecastAsync(SanSalvador, CancellationToken.None);
+        var result = await CreateSut().GetForecastAsync(SanSalvador, ForecastHorizon.DefaultDays, CancellationToken.None);
 
         result.Source.Should().Be(WeatherDataSource.StaleCache);
         result.IsDegraded.Should().BeTrue();
-        result.Forecast.Should().BeSameAs(stale);
+        result.Forecast.RetrievedAt.Should().Be(stale.RetrievedAt);
+        result.Forecast.Days.Should().BeSubsetOf(stale.Days);
     }
 
     [Fact]
@@ -104,11 +105,12 @@ public class ForecastServiceTests
             .GetLatestAsync(SanSalvador, Arg.Any<CancellationToken>())
             .Returns(persisted);
 
-        var result = await CreateSut().GetWeeklyForecastAsync(SanSalvador, CancellationToken.None);
+        var result = await CreateSut().GetForecastAsync(SanSalvador, ForecastHorizon.DefaultDays, CancellationToken.None);
 
         result.Source.Should().Be(WeatherDataSource.Historical);
         result.IsDegraded.Should().BeTrue();
-        result.Forecast.Should().BeSameAs(persisted);
+        result.Forecast.RetrievedAt.Should().Be(persisted.RetrievedAt);
+        result.Forecast.Days.Should().BeSubsetOf(persisted.Days);
     }
 
     [Fact]
@@ -122,9 +124,9 @@ public class ForecastServiceTests
             .GetLatestAsync(SanSalvador, Arg.Any<CancellationToken>())
             .Returns(AForecastFor(SanSalvador));
 
-        var result = await CreateSut().GetWeeklyForecastAsync(SanSalvador, CancellationToken.None);
+        var result = await CreateSut().GetForecastAsync(SanSalvador, ForecastHorizon.DefaultDays, CancellationToken.None);
 
-        result.Forecast.Should().BeSameAs(stale);
+        result.Forecast.Days.Should().BeSubsetOf(stale.Days);
         await _history.DidNotReceiveWithAnyArgs().GetLatestAsync(default!, default);
     }
 
@@ -135,9 +137,9 @@ public class ForecastServiceTests
         GivenTheProviderIsDown();
         _history
             .GetLatestAsync(SanSalvador, Arg.Any<CancellationToken>())
-            .Returns((WeeklyForecast?)null);
+            .Returns((ForecastSeries?)null);
 
-        var act = () => CreateSut().GetWeeklyForecastAsync(SanSalvador, CancellationToken.None);
+        var act = () => CreateSut().GetForecastAsync(SanSalvador, ForecastHorizon.DefaultDays, CancellationToken.None);
 
         await act.Should()
             .ThrowAsync<ForecastUnavailableException>()
@@ -153,13 +155,13 @@ public class ForecastServiceTests
         // Persisting history is a side effect, not part of the caller's request.
         GivenNothingCached();
         _provider
-            .GetWeeklyForecastAsync(SanSalvador, Arg.Any<CancellationToken>())
+            .GetForecastAsync(SanSalvador, Arg.Any<CancellationToken>())
             .Returns(AForecastFor(SanSalvador));
         _history
-            .SaveAsync(Arg.Any<WeeklyForecast>(), Arg.Any<CancellationToken>())
+            .SaveAsync(Arg.Any<ForecastSeries>(), Arg.Any<CancellationToken>())
             .ThrowsAsync(new InvalidOperationException("database unreachable"));
 
-        var result = await CreateSut().GetWeeklyForecastAsync(SanSalvador, CancellationToken.None);
+        var result = await CreateSut().GetForecastAsync(SanSalvador, ForecastHorizon.DefaultDays, CancellationToken.None);
 
         result.Source.Should().Be(WeatherDataSource.Provider);
     }
@@ -175,7 +177,101 @@ public class ForecastServiceTests
             .GetLatestAsync(Arg.Any<GeoLocation>(), Arg.Any<CancellationToken>())
             .ThrowsAsync(new InvalidOperationException("database unreachable"));
 
-        var act = () => CreateSut().GetWeeklyForecastAsync(SanSalvador, CancellationToken.None);
+        var act = () => CreateSut().GetForecastAsync(SanSalvador, ForecastHorizon.DefaultDays, CancellationToken.None);
+
+        await act.Should().ThrowAsync<ForecastUnavailableException>();
+    }
+
+    // ------------------------------------------------------------------ ranges
+
+    /// <summary>
+    /// The whole point of the projection: one fetch, one cache entry, one stored
+    /// snapshot, and every range answered from it.
+    /// </summary>
+    [Fact]
+    public async Task Fetches_the_whole_horizon_however_few_days_the_caller_wants()
+    {
+        GivenNothingCached();
+        _provider
+            .GetForecastAsync(SanSalvador, Arg.Any<CancellationToken>())
+            .Returns(AForecastFor(SanSalvador));
+
+        var result = await CreateSut().GetForecastAsync(SanSalvador, 3, CancellationToken.None);
+
+        result.Forecast.Days.Should().HaveCount(3);
+        await _history
+            .Received(1)
+            .SaveAsync(
+                Arg.Is<ForecastSeries>(f => f.Days.Count == ForecastHorizon.MaximumDays),
+                Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Serves_a_longer_range_than_the_old_contract_offered()
+    {
+        GivenNothingCached();
+        _provider
+            .GetForecastAsync(SanSalvador, Arg.Any<CancellationToken>())
+            .Returns(AForecastFor(SanSalvador));
+
+        var result = await CreateSut()
+            .GetForecastAsync(SanSalvador, ForecastHorizon.MaximumDays, CancellationToken.None);
+
+        result.Forecast.Days.Should().HaveCount(ForecastHorizon.MaximumDays);
+    }
+
+    [Fact]
+    public async Task Answers_a_shorter_range_from_the_cache_without_going_to_the_network()
+    {
+        GivenCached(AForecastFor(SanSalvador), freshFor: TimeSpan.FromMinutes(10));
+
+        var result = await CreateSut().GetForecastAsync(SanSalvador, 5, CancellationToken.None);
+
+        result.Source.Should().Be(WeatherDataSource.Cache);
+        result.Forecast.Days.Should().HaveCount(5);
+        await _provider.DidNotReceiveWithAnyArgs().GetForecastAsync(default!, default);
+    }
+
+    /// <summary>
+    /// A snapshot recorded three days ago still opens on the day it was taken.
+    /// Handing back its first seven entries would serve three days that have
+    /// already happened — a degraded answer that is worse than the outage.
+    /// </summary>
+    [Fact]
+    public async Task Skips_the_days_a_stored_snapshot_has_already_outlived()
+    {
+        GivenNothingCached();
+        GivenTheProviderIsDown();
+        _history
+            .GetLatestAsync(SanSalvador, Arg.Any<CancellationToken>())
+            .Returns(AForecastFor(SanSalvador, ForecastHorizon.MaximumDays, startingDaysAgo: 3));
+
+        var result = await CreateSut()
+            .GetForecastAsync(SanSalvador, ForecastHorizon.DefaultDays, CancellationToken.None);
+
+        result.Source.Should().Be(WeatherDataSource.Historical);
+        result.Forecast.Days.Should().HaveCount(ForecastHorizon.DefaultDays);
+        result.Forecast.Days[0]
+            .Date.Should()
+            .Be(DateOnly.FromDateTime(Now.UtcDateTime).AddDays(-1));
+    }
+
+    /// <summary>
+    /// Unreachable while the history's own usability window is narrower than the
+    /// horizon, and kept anyway: an empty list rendered as a forecast is a
+    /// confident answer about nothing, and a 503 is the honest reply.
+    /// </summary>
+    [Fact]
+    public async Task Reports_the_forecast_as_unavailable_when_every_day_left_is_in_the_past()
+    {
+        GivenNothingCached();
+        GivenTheProviderIsDown();
+        _history
+            .GetLatestAsync(SanSalvador, Arg.Any<CancellationToken>())
+            .Returns(AForecastFor(SanSalvador, days: 7, startingDaysAgo: 30));
+
+        var act = () =>
+            CreateSut().GetForecastAsync(SanSalvador, ForecastHorizon.DefaultDays, CancellationToken.None);
 
         await act.Should().ThrowAsync<ForecastUnavailableException>();
     }
@@ -183,23 +279,26 @@ public class ForecastServiceTests
     // ----------------------------------------------------------------------- arrange
 
     private void GivenNothingCached() =>
-        _cache.Get<WeeklyForecast>(Arg.Any<string>()).Returns((CachedValue<WeeklyForecast>?)null);
+        _cache.Get<ForecastSeries>(Arg.Any<string>()).Returns((CachedValue<ForecastSeries>?)null);
 
-    private void GivenCached(WeeklyForecast forecast, TimeSpan freshFor) =>
+    private void GivenCached(ForecastSeries forecast, TimeSpan freshFor) =>
         _cache
-            .Get<WeeklyForecast>(Arg.Any<string>())
-            .Returns(new CachedValue<WeeklyForecast>(forecast, Now, Now.Add(freshFor)));
+            .Get<ForecastSeries>(Arg.Any<string>())
+            .Returns(new CachedValue<ForecastSeries>(forecast, Now, Now.Add(freshFor)));
 
     private void GivenTheProviderIsDown() =>
         _provider
-            .GetWeeklyForecastAsync(Arg.Any<GeoLocation>(), Arg.Any<CancellationToken>())
+            .GetForecastAsync(Arg.Any<GeoLocation>(), Arg.Any<CancellationToken>())
             .ThrowsAsync(new WeatherProviderException("open-meteo", "circuit breaker is open"));
 
-    private static WeeklyForecast AForecastFor(GeoLocation location) =>
+    private static ForecastSeries AForecastFor(GeoLocation location) =>
+        AForecastFor(location, ForecastHorizon.MaximumDays);
+
+    private static ForecastSeries AForecastFor(GeoLocation location, int days, int startingDaysAgo = 0) =>
         new(
             location,
             Enumerable
-                .Range(0, 7)
+                .Range(-startingDaysAgo, days)
                 .Select(offset => new DailyForecast(
                     DateOnly.FromDateTime(Now.UtcDateTime).AddDays(offset),
                     MinTemperatureC: 21.0 + offset,

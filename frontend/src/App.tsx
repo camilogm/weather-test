@@ -7,7 +7,7 @@ import { useWeather } from './hooks/useWeather'
 import { CityPicker } from './components/CityPicker'
 import { CurrentConditions } from './components/CurrentConditions'
 import { DegradedNotice } from './components/DegradedNotice'
-import { ForecastWeek } from './components/ForecastWeek'
+import { ForecastCarousel } from './components/ForecastCarousel'
 import { formatCoordinates } from './components/format'
 import { ErrorState, LoadingState } from './components/StateViews'
 
@@ -106,7 +106,7 @@ export default function App() {
           <>
             <DegradedNotice provenance={forecast.provenance} />
             {current && <CurrentConditions current={current} />}
-            <ForecastWeek days={forecast.days} />
+            <ForecastCarousel days={forecast.days} />
           </>
         )}
       </main>

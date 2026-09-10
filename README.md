@@ -422,29 +422,46 @@ It runs as its own compose project on port **9001**, separate from `make up`:
 quality tooling has no business sharing a lifecycle with the service under test,
 and `make clean` must never be able to wipe an analysis history.
 
-Two things about this are worth knowing before you run it:
+Coverage is measured too, and both scans carry it: the backend collects
+OpenCover through `coverlet` while the tests run inside the `begin`/`end`
+sandwich, and the front end writes an lcov report with vitest's v8 provider
+before the scanner container starts. Either report can be produced on its own
+with `make test-coverage` and `make web-test-coverage`.
+
+Four things about this are worth knowing before you run it:
 
 - **The C# analyser only runs as an MSBuild pass.** `sonar-scan-api` is a
-  `begin` → `dotnet build` → `end` sandwich, and the build is not optional:
-  without it the scanner indexes the files and applies no C# rule at all. That
-  build turns `TreatWarningsAsErrors` off, because the injected Sonar analysers
-  raise warnings of their own and a scan that cannot compile reports nothing.
+  `begin` → `dotnet build` → `dotnet test` → `end` sandwich, and the build is not
+  optional: without it the scanner indexes the files and applies no C# rule at
+  all. That build turns `TreatWarningsAsErrors` off, because the injected Sonar
+  analysers raise warnings of their own and a scan that cannot compile reports
+  nothing.
 - **The .NET scanner must be pinned to `net8.0`.** `dotnet tool install
   dotnet-sonarscanner` on its own resolves an `osx-x64` apphost that demands a
   .NET 10 runtime, which fails outright on an Apple Silicon machine carrying
   only the .NET 8 SDK this project targets. `make sonar-tools` passes
   `--framework net8.0` and runs automatically as part of the scan.
+- **The lcov property is `reportPaths`, not `reportsPaths`.** The C# one is
+  `sonar.cs.opencover.reportsPaths` and the JavaScript one is
+  `sonar.javascript.lcov.reportPaths`, and an unknown property is dropped
+  without an error. Get it wrong and the run reports a flat 0% that looks
+  exactly like a project with no tests; only `-X` says otherwise, at `DEBUG`.
+- **`TestResults/` is wiped before each backend scan.** Every `dotnet test` run
+  lands in a fresh GUID directory, so without the wipe the reports of older
+  commits accumulate and the scanner unions them into a coverage figure that
+  describes no revision that ever existed.
 
 ### What it found, and what it did not
 
 | | Backend | Front end |
 | --- | --- | --- |
-| Lines of code | 1605 | 1178 |
+| Lines of code | 1643 | 1365 |
 | Bugs | 0 | 0 |
 | Vulnerabilities | 0 | 0 |
 | Duplication | 0.0% | 0.0% |
-| Code smells | 4 | 11 |
-| Technical debt | 15 min | 75 min |
+| Coverage | 77.4% | 73.2% |
+| Code smells | 4 | 14 |
+| Technical debt | 15 min | 90 min |
 | Reliability / Security / Maintainability | A / A / A | A / A / A |
 
 The security rating was a `C` when this harness first ran, on three counts of
@@ -460,6 +477,12 @@ unbounded-growth problems in `EfForecastHistory` — a table nothing ever pruned
 and a fallback with no age cap. Neither has a syntactic signature. An analyser
 matches shapes; it cannot reason about what a row means or how many of them
 there will be by Tuesday.
+
+The coverage column arrived late, and how it arrived is the same lesson from a
+different angle. Both projects reported **0.0%** for as long as no report was
+handed to the scanner — not "unknown", not a warning, a confident zero sitting
+next to three A ratings while 168 tests passed on every run. A number a tool
+prints is only worth what you know about where it came from.
 
 It does catch what it is good at, including on work done here: extracting
 `useCombobox` went in with a four-level nested ternary, and the scan put

@@ -82,6 +82,16 @@ test-integration: ## Run the integration tests only
 test-watch: ## Re-run the unit tests on every change
 	dotnet watch --project $(UNIT_TESTS) test
 
+.PHONY: test-coverage
+test-coverage: ## Run every test and write an OpenCover report per test project
+	@# Wiped first: every run lands in a fresh GUID directory, so without this
+	@# the reports of old commits pile up and Sonar unions them into a number
+	@# that describes no revision that ever existed.
+	rm -rf $(BACKEND)/TestResults
+	cd $(BACKEND) && dotnet test WeatherService.sln \
+		--collect:"XPlat Code Coverage;Format=opencover" \
+		--results-directory ./TestResults
+
 # ------------------------------------------------------------------ migrations
 # Migrations live in Infrastructure (next to the DbContext) while the API is the
 # startup project, because that is where configuration and the Design package
@@ -138,6 +148,10 @@ web-test: ## Run the front-end tests
 web-test-watch: ## Re-run the front-end tests on every change
 	npm run test:watch --prefix $(FRONTEND)
 
+.PHONY: web-test-coverage
+web-test-coverage: ## Run the front-end tests and write an lcov report
+	npm run test:coverage --prefix $(FRONTEND)
+
 # ------------------------------------------------------- quality (SonarQube)
 # The subjective half of a review is a human reading the diff. This is the
 # objective half: a real SonarQube instance, run locally, so the quality numbers
@@ -175,20 +189,41 @@ sonar-scan-api: sonar-tools ## Analyse the backend
 	@# applies no C# rule at all. The build turns TreatWarningsAsErrors off
 	@# because the injected Sonar analysers raise warnings of their own, and a
 	@# quality scan that cannot compile reports nothing.
+	@#
+	@# The tests run between the build and the end step so their OpenCover
+	@# reports exist by the time the scanner collects them. Skip them and Sonar
+	@# does not report "unknown" — it reports 0%, which reads like a codebase
+	@# with no tests rather than a scan that was never shown any.
+	rm -rf $(BACKEND)/TestResults
 	cd $(BACKEND) && dotnet-sonarscanner begin \
 		/k:"weather-backend" /n:"Weather Backend" \
 		/d:sonar.host.url="$(SONAR_URL)" \
 		/d:sonar.token="$(SONAR_TOKEN)" \
 		/d:sonar.scanner.scanAll=false \
-		/d:sonar.exclusions="**/Migrations/**"
+		/d:sonar.exclusions="**/Migrations/**" \
+		/d:sonar.cs.opencover.reportsPaths="TestResults/**/coverage.opencover.xml"
 	cd $(BACKEND) && dotnet build WeatherService.sln --no-incremental -p:TreatWarningsAsErrors=false
+	cd $(BACKEND) && dotnet test WeatherService.sln --no-build \
+		-p:TreatWarningsAsErrors=false \
+		--collect:"XPlat Code Coverage;Format=opencover" \
+		--results-directory ./TestResults
 	cd $(BACKEND) && dotnet-sonarscanner end /d:sonar.token="$(SONAR_TOKEN)"
 
 .PHONY: sonar-scan-web
-sonar-scan-web: ## Analyse the front end
+sonar-scan-web: web-test-coverage ## Analyse the front end
 	@test -n "$(SONAR_TOKEN)" || (echo "no analysis token — run: make sonar-up" && exit 1)
 	@# Run on SonarQube's own compose network and address it by service name:
 	@# a container cannot reach the host's published port on macOS.
+	@#
+	@# Coverage is produced on the host beforehand, not in the container, and
+	@# survives the trip because the v8 provider writes paths relative to the
+	@# front-end root — which is exactly what /usr/src is mounted as. An lcov
+	@# carrying absolute host paths would parse and then match no file at all.
+	@#
+	@# reportPaths, not reportsPaths. The C# property is `reportsPaths` and the
+	@# JavaScript one is not, an unknown property is dropped without an error,
+	@# and the run then reports a flat 0% that is indistinguishable from a
+	@# project with no tests. Only `-X` says so, and only at DEBUG.
 	docker run --rm \
 		--network $(SONAR_NET) \
 		-e SONAR_HOST_URL="http://sonarqube:9000" \
@@ -199,9 +234,10 @@ sonar-scan-web: ## Analyse the front end
 		-Dsonar.projectName="Weather Frontend" \
 		-Dsonar.sources=src \
 		-Dsonar.inclusions="src/**/*.ts,src/**/*.tsx,src/**/*.css,index.html" \
-		-Dsonar.exclusions="node_modules/**,dist/**" \
+		-Dsonar.exclusions="node_modules/**,dist/**,coverage/**" \
 		-Dsonar.tests=src \
 		-Dsonar.test.inclusions="src/**/*.test.ts,src/**/*.test.tsx,src/test/**" \
+		-Dsonar.javascript.lcov.reportPaths=coverage/lcov.info \
 		-Dsonar.sourceEncoding=UTF-8
 
 .PHONY: sonar-report

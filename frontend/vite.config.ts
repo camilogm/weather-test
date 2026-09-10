@@ -22,5 +22,24 @@ export default defineConfig({
     // honest about where their vocabulary comes from, and keeps the app's
     // tsconfig from having to widen its `types` array for production code.
     globals: false,
+    coverage: {
+      // v8 reads the coverage the engine already collects, so it measures the
+      // code that actually ran rather than an instrumented copy of it.
+      provider: 'v8',
+      // `text` is for the person running it; `lcov` is what SonarQube parses.
+      reporter: ['text', 'lcov'],
+      reportsDirectory: './coverage',
+      // Without `all`, a file no test ever imports is simply absent from the
+      // report — and a file with no tests is exactly what coverage is for.
+      all: true,
+      include: ['src/**/*.{ts,tsx}'],
+      exclude: [
+        'src/**/*.test.{ts,tsx}',
+        'src/test/**',
+        'src/main.tsx',
+        'src/vite-env.d.ts',
+        'src/**/*.d.ts',
+      ],
+    },
   },
 })

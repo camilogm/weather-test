@@ -27,70 +27,75 @@ export default function App() {
   const coordinates = forecast?.location ?? location
 
   return (
-    <div className="mx-auto flex min-h-full max-w-6xl flex-col px-5 py-8 sm:px-8 sm:py-12">
+    <div className="mx-auto flex min-h-full max-w-7xl flex-col px-5 py-6 sm:px-8 sm:py-8">
       {/*
-        A masthead, not a toolbar: kicker, name, coordinates, then the heavy
-        rule that every printed bulletin puts under its title.
+        The header separates itself with air, not with a rule. A heavy border
+        under a title is a masthead; a store page just leaves room and lets the
+        size of the type do the work.
       */}
-      <header className="flex flex-col gap-6 border-b-2 border-ink pb-5 sm:flex-row sm:items-end sm:justify-between">
-        <div className="min-w-0">
-          <p className="font-mono text-[0.7rem] font-medium uppercase tracking-[0.22em] text-warm">
-            {t('app.eyebrow')}
-          </p>
+      <header className="pb-6">
+        <p className="text-label font-medium uppercase text-ink-muted">{t('app.eyebrow')}</p>
 
-          <h1 className="mt-2 font-display text-5xl font-medium leading-[0.95] tracking-tight sm:text-6xl">
-            {location.name}
-          </h1>
+        {/*
+          The search shares the headline's line and centres on it. Two earlier
+          layouts got this wrong in opposite directions: aligning to the bottom
+          of the whole title block put the field level with the coordinates
+          rather than the name, and giving it a row of its own spent 84px of
+          height on a single 44px control. Centred against the headline it is
+          level with the city, and the row costs 2px over the headline alone.
+        */}
+        <div className="mt-2 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between sm:gap-8">
+          <h1 className="text-title font-semibold">{location.name}</h1>
 
-          <p className="mt-2 font-mono text-xs text-ink-muted">
-            {formatCoordinates(coordinates.latitude, coordinates.longitude)}
-          </p>
-        </div>
+          <div className="flex shrink-0 items-center gap-3">
+            <CityPicker selected={location} onSelect={setLocation} />
 
-        <div className="flex items-start gap-2">
-          <CityPicker selected={location} onSelect={setLocation} />
-
-          {/*
-            A refresh no longer blanks the page to reload what is already on it,
-            which leaves the click with nothing to show for itself. The spinning
-            glyph is that acknowledgement, and aria-busy is the same news for
-            anyone not looking at it.
-          */}
-          <button
-            type="button"
-            onClick={refresh}
-            aria-label={t('picker.refresh')}
-            aria-busy={isRefreshing}
-            // size-11 is 44px: it lines the button up with the input beside it
-            // and clears the minimum touch target in the same stroke.
-            className="flex size-11 shrink-0 cursor-pointer items-center justify-center border border-ink bg-surface transition-colors hover:bg-ink hover:text-canvas focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-          >
-            <svg
-              viewBox="0 0 20 20"
-              className={['size-4', isRefreshing ? 'motion-safe:animate-spin' : ''].join(' ')}
-              aria-hidden="true"
+            {/*
+              A refresh no longer blanks the page to reload what is already on it,
+              which leaves the click with nothing to show for itself. The spinning
+              glyph is that acknowledgement, and aria-busy is the same news for
+              anyone not looking at it.
+            */}
+            <button
+              type="button"
+              onClick={refresh}
+              aria-label={t('picker.refresh')}
+              aria-busy={isRefreshing}
+              // size-11 is 44px: it lines the button up with the input beside it
+              // and clears the minimum touch target in the same stroke.
+              className="flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full bg-surface text-ink-muted shadow-control transition-colors hover:bg-surface-muted hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
             >
-              <path
-                d="M16.5 10a6.5 6.5 0 1 1-1.9-4.6"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={1.8}
-                strokeLinecap="round"
-              />
-              <path
-                d="M16.6 2.6v3.6H13"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={1.8}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </button>
+              <svg
+                viewBox="0 0 20 20"
+                className={['size-5', isRefreshing ? 'motion-safe:animate-spin' : ''].join(' ')}
+                aria-hidden="true"
+              >
+                <path
+                  d="M16.5 10a6.5 6.5 0 1 1-1.9-4.6"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={1.8}
+                  strokeLinecap="round"
+                />
+                <path
+                  d="M16.6 2.6v3.6H13"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={1.8}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+          </div>
         </div>
+
+        <p className="mt-2 text-caption tabular-nums text-ink-muted">
+          {formatCoordinates(coordinates.latitude, coordinates.longitude)}
+        </p>
       </header>
 
-      <main className="flex-1 space-y-8 py-8">
+      <main className="flex-1 space-y-5">
         {status === 'loading' && <LoadingState />}
 
         {status === 'error' && error && (
@@ -106,8 +111,7 @@ export default function App() {
         )}
       </main>
 
-      {/* The colophon: where the page came from, set small in mono like a credit line. */}
-      <footer className="border-t border-line pt-4 font-mono text-[0.7rem] leading-relaxed text-ink-muted">
+      <footer className="mt-8 border-t border-line pt-4 text-caption text-ink-muted">
         {t('footer.credit')}
         {forecast && (
           <>

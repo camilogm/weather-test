@@ -7,7 +7,7 @@ import { formatObservedAt } from './format'
  * that on is the whole point — a stale forecast presented as current is worse
  * than an honest warning.
  */
-export function DegradedNotice({ provenance }: { provenance: Provenance }) {
+export function DegradedNotice({ provenance }: Readonly<{ provenance: Provenance }>) {
   if (!provenance.degraded) {
     return null
   }

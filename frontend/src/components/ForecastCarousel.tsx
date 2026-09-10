@@ -38,7 +38,7 @@ const GAP_REM = 0.75
  */
 const CARD_BASIS = `calc((100% - ${(DEFAULT_RANGE - 1) * GAP_REM}rem) / ${DEFAULT_RANGE})`
 
-export function ForecastCarousel({ days }: { days: DailyForecast[] }) {
+export function ForecastCarousel({ days }: Readonly<{ days: DailyForecast[] }>) {
   const [requested, setRequested] = useState<number>(DEFAULT_RANGE)
 
   // Clamped rather than corrected in an effect. A degraded answer can carry
@@ -131,7 +131,7 @@ interface RangeProps {
  * announces "2 of 3" rather than three unrelated toggles that happen to look
  * related. A roving tabindex would be more code to arrive somewhere worse.
  */
-function RangePicker({ available, value, onChange }: RangeProps) {
+function RangePicker({ available, value, onChange }: Readonly<RangeProps>) {
   // Whatever is left over always closes the list, so the widest option shows
   // every day there is — ten when a degraded answer carries ten — instead of a
   // control that promises sixteen and quietly delivers what it has.
@@ -188,7 +188,7 @@ interface ArrowProps {
   back?: boolean
 }
 
-function Arrow({ label, onClick, disabled, back = false }: ArrowProps) {
+function Arrow({ label, onClick, disabled, back = false }: Readonly<ArrowProps>) {
   return (
     <button
       type="button"
@@ -233,7 +233,7 @@ interface DayProps {
   warmest: number
 }
 
-function ForecastDay({ day, coldest, warmest }: DayProps) {
+function ForecastDay({ day, coldest, warmest }: Readonly<DayProps>) {
   const today = isToday(day.date)
   const condition = translateCondition(day.condition)
 

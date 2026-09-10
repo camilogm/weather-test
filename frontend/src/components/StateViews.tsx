@@ -37,7 +37,7 @@ interface ErrorProps {
   onRetry: () => void
 }
 
-export function ErrorState({ error, city, onRetry }: ErrorProps) {
+export function ErrorState({ error, city, onRetry }: Readonly<ErrorProps>) {
   // The server's own wording is English and meant for a log; the interface
   // chooses its own words from the kind of failure it was told about.
   const explanation = t(MESSAGE_FOR[error.kind], { city })

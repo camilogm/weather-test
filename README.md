@@ -460,8 +460,8 @@ Four things about this are worth knowing before you run it:
 | Vulnerabilities | 0 | 0 |
 | Duplication | 0.0% | 0.0% |
 | Coverage | 77.4% | 73.2% |
-| Code smells | 4 | 14 |
-| Technical debt | 15 min | 90 min |
+| Code smells | 4 | 4 |
+| Technical debt | 15 min | 40 min |
 | Reliability / Security / Maintainability | A / A / A | A / A / A |
 
 The security rating was a `C` when this harness first ran, on three counts of

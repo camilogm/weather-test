@@ -2,6 +2,7 @@ using System.Net;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
+using WeatherService.Application.Forecast;
 using WeatherService.Application.Model;
 using WeatherService.Application.Ports;
 using WeatherService.Infrastructure.Providers.OpenMeteo;
@@ -45,7 +46,7 @@ public class OpenMeteoWeatherProviderTests
     // ------------------------------------------------------------------- mapping
 
     [Fact]
-    public async Task Maps_a_columnar_payload_into_seven_domain_days()
+    public async Task Maps_every_column_entry_into_a_domain_day()
     {
         var handler = StubHttpMessageHandler.Returning(HttpStatusCode.OK, ValidForecastPayload);
 
@@ -61,8 +62,14 @@ public class OpenMeteoWeatherProviderTests
         forecast.RetrievedAt.Should().Be(Now);
     }
 
+    /// <summary>
+    /// The adapter always asks for the whole horizon, never for the range a
+    /// caller happened to want. Trimming is a projection done above this layer,
+    /// which is what keeps one cache entry and one stored snapshot per location
+    /// no matter how many different ranges get requested.
+    /// </summary>
     [Fact]
-    public async Task Asks_the_provider_for_a_full_week_at_the_requested_coordinates()
+    public async Task Asks_the_provider_for_the_whole_horizon_at_the_requested_coordinates()
     {
         var handler = StubHttpMessageHandler.Returning(HttpStatusCode.OK, ValidForecastPayload);
 
@@ -71,7 +78,17 @@ public class OpenMeteoWeatherProviderTests
         var query = handler.Requests.Single().RequestUri!.Query;
         query.Should().Contain("latitude=13.6929");
         query.Should().Contain("longitude=-89.2182");
-        query.Should().Contain("forecast_days=7");
+        query.Should().Contain($"forecast_days={ForecastHorizon.MaximumDays}");
+    }
+
+    /// <summary>
+    /// Open-Meteo answers "Allowed range 0 to 16" to anything larger, so a
+    /// horizon above that ceiling would make every single forecast call fail.
+    /// </summary>
+    [Fact]
+    public void Never_asks_for_more_days_than_open_meteo_serves()
+    {
+        ForecastHorizon.MaximumDays.Should().BeLessThanOrEqualTo(16);
     }
 
     [Theory]

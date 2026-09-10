@@ -33,7 +33,12 @@
 
   "forecast": {
     "heading": "Próximos {days} días",
-    "today": "Hoy"
+    "today": "Hoy",
+    "track": "Pronóstico día por día, deslizable",
+    "rangeLegend": "Cuántos días mostrar",
+    "rangeOption": "{days} días",
+    "previous": "Días anteriores",
+    "next": "Días siguientes"
   },
 
   "degraded": {

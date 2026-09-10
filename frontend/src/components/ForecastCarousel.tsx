@@ -17,6 +17,9 @@ const RANGES = [7, 14] as const
 
 const DEFAULT_RANGE = 7
 
+/** Matches gap-3 on the track; the share below has to deduct it. */
+const GAP_REM = 0.75
+
 export function ForecastCarousel({ days }: { days: DailyForecast[] }) {
   const [requested, setRequested] = useState<number>(DEFAULT_RANGE)
 
@@ -36,6 +39,14 @@ export function ForecastCarousel({ days }: { days: DailyForecast[] }) {
   const coldest = Math.min(...visible.map((day) => day.minTemperatureC))
   const warmest = Math.max(...visible.map((day) => day.maxTemperatureC))
 
+  // An even share of the visible width, gaps deducted — and the reason the
+  // resize can be animated at all. The previous version reached the same widths
+  // through flex-grow, but grow distributes leftover space during layout: the
+  // declared value never changes, so there is nothing for a transition to fire
+  // on and the cards could only snap. A flex-basis that is recomputed per range
+  // does change, so the browser has two values to travel between.
+  const share = `calc((100% - ${(visible.length - 1) * GAP_REM}rem) / ${visible.length})`
+
   return (
     <section aria-labelledby="forecast-heading">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -43,44 +54,60 @@ export function ForecastCarousel({ days }: { days: DailyForecast[] }) {
           {t('forecast.heading', { days: visible.length })}
         </h2>
 
-        <div className="flex items-center gap-2">
-          <RangePicker available={days.length} value={range} onChange={setRequested} />
-
-          {/*
-            Pointer convenience, and nothing more. They appear only when there is
-            something off screen, and they are gone below sm where the gesture is
-            a swipe — the track itself stays focusable and arrow-key scrollable
-            at every size, so nobody depends on these to get through the week.
-          */}
-          {overflows && (
-            <div className="hidden shrink-0 items-center gap-1 sm:flex">
-              <Arrow label={t('forecast.previous')} onClick={back} disabled={!canScrollBack} back />
-              <Arrow label={t('forecast.next')} onClick={forward} disabled={!canScrollForward} />
-            </div>
-          )}
-        </div>
+        <RangePicker available={days.length} value={range} onChange={setRequested} />
       </div>
 
       {/*
-        A real overflow container, not a transformed strip with an index. The
-        browser already knows how to do momentum, trackpad gestures, page keys
-        and bringing a focused card into view; re-implementing any of that would
-        be re-implementing it worse.
+        The arrows live over the track, not beside the range picker.
 
-        tabIndex makes the region reachable for anyone not using a pointer — a
-        scrollable area that cannot be focused is unreachable by keyboard, which
-        is the whole of WCAG 2.1.1 in one attribute.
+        In the header row they were in flow, so the moment a range started
+        overflowing they mounted and shoved the picker sideways — moving a
+        control while somebody is still using it, which is how a second click
+        lands on the wrong segment. Out of flow they cost the layout nothing,
+        appear and vanish without touching a single neighbour, and end up
+        attached to the thing they actually scroll.
       */}
-      <ol
-        ref={ref}
-        tabIndex={0}
-        aria-label={t('forecast.track')}
-        className="mt-4 flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 motion-safe:scroll-smooth focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-      >
-        {visible.map((day) => (
-          <ForecastDay key={day.date} day={day} coldest={coldest} warmest={warmest} />
-        ))}
-      </ol>
+      <div className="relative mt-4">
+        {/*
+          A real overflow container, not a transformed strip with an index. The
+          browser already knows how to do momentum, trackpad gestures, page keys
+          and bringing a focused card into view; re-implementing any of that
+          would be re-implementing it worse.
+
+          tabIndex makes the region reachable for anyone not using a pointer — a
+          scrollable area that cannot be focused is unreachable by keyboard,
+          which is the whole of WCAG 2.1.1 in one attribute.
+        */}
+        <ol
+          ref={ref}
+          tabIndex={0}
+          aria-label={t('forecast.track')}
+          className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 motion-safe:scroll-smooth focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        >
+          {visible.map((day) => (
+            <ForecastDay
+              key={day.date}
+              day={day}
+              share={share}
+              coldest={coldest}
+              warmest={warmest}
+            />
+          ))}
+        </ol>
+
+        {/*
+          Pointer convenience, and nothing more: they show only when something is
+          off screen, and they are gone below sm where the gesture is a swipe.
+          The track itself stays focusable and arrow-key scrollable at every
+          size, so nobody depends on these to get through the range.
+        */}
+        {overflows && (
+          <>
+            <Arrow label={t('forecast.previous')} onClick={back} disabled={!canScrollBack} back />
+            <Arrow label={t('forecast.next')} onClick={forward} disabled={!canScrollForward} />
+          </>
+        )}
+      </div>
     </section>
   )
 }
@@ -151,7 +178,19 @@ function Arrow({ label, onClick, disabled, back = false }: ArrowProps) {
       onClick={onClick}
       disabled={disabled}
       aria-label={label}
-      className="flex size-9 cursor-pointer items-center justify-center rounded-full bg-surface text-ink-muted shadow-control transition-colors hover:bg-surface-muted hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-default disabled:opacity-35 disabled:hover:bg-surface disabled:hover:text-ink-muted"
+      // inset-y-0 + my-auto centres against the track without anyone having to
+      // know how tall a card is. shadow-popover rather than shadow-control on
+      // purpose: this is the elevation the tokens already reserve for something
+      // floating ABOVE the page, and it is what separates a white button from
+      // the white card underneath it.
+      className={[
+        'absolute inset-y-0 my-auto hidden size-9 cursor-pointer items-center justify-center',
+        'rounded-full bg-surface text-ink-muted shadow-popover transition sm:flex',
+        'hover:bg-surface-muted hover:text-ink',
+        'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
+        'disabled:cursor-default disabled:opacity-0 disabled:hover:bg-surface',
+        back ? 'left-1' : 'right-1',
+      ].join(' ')}
     >
       <svg viewBox="0 0 20 20" className="size-4" aria-hidden="true">
         <path
@@ -169,11 +208,12 @@ function Arrow({ label, onClick, disabled, back = false }: ArrowProps) {
 
 interface DayProps {
   day: DailyForecast
+  share: string
   coldest: number
   warmest: number
 }
 
-function ForecastDay({ day, coldest, warmest }: DayProps) {
+function ForecastDay({ day, share, coldest, warmest }: DayProps) {
   const today = isToday(day.date)
   const condition = translateCondition(day.condition)
 
@@ -182,20 +222,28 @@ function ForecastDay({ day, coldest, warmest }: DayProps) {
   const width = ((day.maxTemperatureC - day.minTemperatureC) / span) * 100
 
   return (
-    // flex: 1 0 8.75rem — grow into whatever is spare, never shrink below 140px.
+    // An even share of the track, floored at 140px and capped at 224px.
     //
-    // One declaration covering both halves of this component. When the range
-    // fits, the free space is shared out and the row reaches the same right edge
-    // as the panel above it, instead of stopping short and reading as a
-    // misalignment. When it does not fit, shrink-0 pins every card at 140px, the
-    // sum overflows the container, and that overflow IS the carousel — with the
-    // last visible card half cut off, which is the cheapest signal there is that
-    // the row keeps going.
+    // One rule covering both halves of this component. When the range fits, the
+    // share is wider than the floor and the row reaches the same right edge as
+    // the panel above it, instead of stopping short and reading as a
+    // misalignment. When it does not, the floor wins, every card sits at 140px,
+    // the sum overflows — and that overflow IS the carousel, with the last
+    // visible card half cut off, the cheapest signal there is that the row keeps
+    // going.
     //
-    // The cap is for the short answer. A degraded snapshot can carry four days,
-    // and four cards sharing 1216px would be 295px each: an icon and two numbers
+    // The cap is for the short answer: a degraded snapshot can carry four days,
+    // and four cards sharing 1216px would be 295px each, an icon and two numbers
     // marooned in the middle of a billboard.
-    <li className="flex max-w-56 shrink-0 grow basis-35 snap-start flex-col gap-2 rounded-card bg-surface px-4 py-4 text-center">
+    //
+    // starting:opacity-0 is what stops nine cards popping into existence at once
+    // when the range widens. @starting-style only applies to elements being
+    // inserted, so the days already on screen slide to their new width while
+    // only the new ones fade in — no list-transition library, no keys to track.
+    <li
+      style={{ flexBasis: share }}
+      className="flex min-w-35 max-w-56 shrink-0 snap-start flex-col gap-2 rounded-card bg-surface px-4 py-4 text-center starting:opacity-0 motion-safe:transition-[flex-basis,opacity] motion-safe:duration-300 motion-safe:ease-out"
+    >
       {/*
         Today is marked by setting its name in the accent, not by a coloured rule
         across the tile. One accent, used the same way everywhere.

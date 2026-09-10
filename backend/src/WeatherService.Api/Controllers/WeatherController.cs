@@ -73,7 +73,7 @@ public sealed class WeatherController : ControllerBase
         CancellationToken cancellationToken)
     {
         var location = await ResolveAsync(query, cancellationToken);
-        var result = await _forecasts.GetForecastAsync(location, cancellationToken);
+        var result = await _forecasts.GetForecastAsync(location, ForecastHorizon.DefaultDays, cancellationToken);
 
         var provenance = Declare(result.Source, result.IsDegraded, result.Forecast.RetrievedAt);
 

@@ -182,10 +182,20 @@ function ForecastDay({ day, coldest, warmest }: DayProps) {
   const width = ((day.maxTemperatureC - day.minTemperatureC) / span) * 100
 
   return (
-    // A fixed width is what creates the overflow in the first place, and it is
-    // what makes the last card on screen sit half cut off — the cheapest signal
-    // there is that the row keeps going.
-    <li className="flex w-35 shrink-0 snap-start flex-col gap-2 rounded-card bg-surface px-4 py-4 text-center">
+    // flex: 1 0 8.75rem — grow into whatever is spare, never shrink below 140px.
+    //
+    // One declaration covering both halves of this component. When the range
+    // fits, the free space is shared out and the row reaches the same right edge
+    // as the panel above it, instead of stopping short and reading as a
+    // misalignment. When it does not fit, shrink-0 pins every card at 140px, the
+    // sum overflows the container, and that overflow IS the carousel — with the
+    // last visible card half cut off, which is the cheapest signal there is that
+    // the row keeps going.
+    //
+    // The cap is for the short answer. A degraded snapshot can carry four days,
+    // and four cards sharing 1216px would be 295px each: an icon and two numbers
+    // marooned in the middle of a billboard.
+    <li className="flex max-w-56 shrink-0 grow basis-35 snap-start flex-col gap-2 rounded-card bg-surface px-4 py-4 text-center">
       {/*
         Today is marked by setting its name in the accent, not by a coloured rule
         across the tile. One accent, used the same way everywhere.

@@ -1,6 +1,6 @@
 {
   "app": {
-    "eyebrow": "Pronóstico semanal",
+    "eyebrow": "Pronóstico",
     "coordinates": "{lat} · {lon}"
   },
 

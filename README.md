@@ -455,13 +455,13 @@ Four things about this are worth knowing before you run it:
 
 | | Backend | Front end |
 | --- | --- | --- |
-| Lines of code | 1643 | 1365 |
+| Lines of code | 1646 | 1363 |
 | Bugs | 0 | 0 |
 | Vulnerabilities | 0 | 0 |
 | Duplication | 0.0% | 0.0% |
-| Coverage | 77.4% | 73.2% |
-| Code smells | 4 | 4 |
-| Technical debt | 15 min | 40 min |
+| Coverage | 77.4% | 74.9% |
+| Code smells | 2 | 2 |
+| Technical debt | 0 min | 25 min |
 | Reliability / Security / Maintainability | A / A / A | A / A / A |
 
 The security rating was a `C` when this harness first ran, on three counts of
@@ -489,6 +489,17 @@ It does catch what it is good at, including on work done here: extracting
 cognitive complexity up by 24 and technical debt up by 20 minutes until that was
 rewritten with guard clauses. A quality gate that only ever agrees with you is
 not a gate.
+
+**The four findings still open are open on purpose**, which is the other half of
+taking a gate seriously. Two are micro-optimisations (`CA1859`) that ask for a
+concrete `Dictionary` and array in place of the read-only interfaces those two
+members deliberately return. One is `S8786`, super-linear backtracking in
+`/\/+$/` — a regular expression applied once, at module load, to a base URL Vite
+baked in at build time, where no attacker-controlled input can reach it. The
+last is `S6845`, `tabIndex` on the carousel's `<ol>`: a scrollable region that
+cannot take focus is unreachable by keyboard, so obeying that one would break
+WCAG 2.1.1 to satisfy a linter. A gate at zero is a gate someone either silenced
+or damaged working code to please.
 
 Sonar is the floor, not the verdict.
 

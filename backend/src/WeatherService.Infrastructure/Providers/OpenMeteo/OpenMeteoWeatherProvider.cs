@@ -101,10 +101,25 @@ public sealed class OpenMeteoWeatherProvider : IWeatherProvider
     }
 
     /// <summary>
-    /// Open-Meteo answers in columns, not rows. If one column comes back short,
-    /// zipping them blindly would pair the wrong temperature with the wrong day
-    /// and produce a forecast that looks entirely plausible and is wrong — which
-    /// is far worse than no forecast at all.
+    /// Open-Meteo answers in columns, not rows, and the two ways that can go
+    /// wrong need opposite treatment.
+    ///
+    /// A column of the WRONG LENGTH is fatal. Zipping mismatched columns would
+    /// pair the wrong temperature with the wrong day and produce a forecast that
+    /// looks entirely plausible and is wrong — far worse than no forecast at all.
+    ///
+    /// A NULL ENTRY inside correctly-sized columns is not. Open-Meteo pads the
+    /// tail of the horizon that way when the location's local calendar runs past
+    /// the model's data window, so fifteen real days can arrive alongside an empty
+    /// sixteenth. Nothing is misaligned by it, and a day with no condition and no
+    /// temperatures carries nothing to show, so that day is dropped and the rest
+    /// is served. Each <see cref="DailyForecast"/> carries its own date, so the
+    /// series survives a hole in the middle just as well as one at the end.
+    ///
+    /// If NO day survives, the answer is unusable and leaves as a provider
+    /// failure. It must not leave as an empty series: that would be cached for
+    /// ten minutes and written to history as a snapshot, poisoning the two
+    /// fallbacks that exist for exactly this moment.
     /// </summary>
     private static IReadOnlyList<DailyForecast> ToDays(OpenMeteoDailyBlock daily)
     {
@@ -127,14 +142,30 @@ public sealed class OpenMeteoWeatherProvider : IWeatherProvider
                 + $"max={daily.MaxTemperature.Count}, min={daily.MinTemperature.Count})");
         }
 
-        var forecast = new DailyForecast[days];
+        var forecast = new List<DailyForecast>(days);
         for (var index = 0; index < days; index++)
         {
-            forecast[index] = new DailyForecast(
-                ParseDate(daily.Time[index]),
-                daily.MinTemperature[index],
-                daily.MaxTemperature[index],
-                WmoWeatherCode.ToCondition(daily.WeatherCode[index]));
+            var date = daily.Time[index];
+            var code = daily.WeatherCode[index];
+            var max = daily.MaxTemperature[index];
+            var min = daily.MinTemperature[index];
+
+            if (date is null || code is null || max is null || min is null)
+            {
+                continue;
+            }
+
+            forecast.Add(
+                new DailyForecast(
+                    ParseDate(date),
+                    min.Value,
+                    max.Value,
+                    WmoWeatherCode.ToCondition(code.Value)));
+        }
+
+        if (forecast.Count == 0)
+        {
+            throw Malformed($"none of the {days} days it sent carried any data");
         }
 
         return forecast;

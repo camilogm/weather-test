@@ -78,6 +78,12 @@ test-unit: ## Run the unit tests only
 test-integration: ## Run the integration tests only
 	dotnet test $(INTEGRATION)
 
+.PHONY: test-postgres
+test-postgres: ## Run only the tests that need a real Postgres (needs Docker)
+	@# Part of `make test` already — this target is for iterating on them alone,
+	@# since they are the slowest in the suite by an order of magnitude.
+	dotnet test $(INTEGRATION) --filter 'FullyQualifiedName~PostgresForecastHistoryTests'
+
 .PHONY: test-watch
 test-watch: ## Re-run the unit tests on every change
 	dotnet watch --project $(UNIT_TESTS) test

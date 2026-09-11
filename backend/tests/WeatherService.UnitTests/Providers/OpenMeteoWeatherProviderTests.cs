@@ -174,6 +174,98 @@ public class OpenMeteoWeatherProviderTests
         await act.Should().ThrowAsync<WeatherProviderException>();
     }
 
+    /// <summary>
+    /// Open-Meteo pads the tail of the horizon with nulls whenever the location's
+    /// local calendar runs past the model's data window — a live payload for
+    /// Atlantis, ZA came back with `weather_code[15]`, `temperature_2m_max[15]`
+    /// and `temperature_2m_min[15]` all null while the first fifteen days were
+    /// perfectly good. Whether it happens depends on the location's UTC offset
+    /// and the hour you ask, so it is not reproducible on demand and is very much
+    /// real: London and Nairobi were both answering 503 while San Salvador,
+    /// Madrid and Tokyo answered 200.
+    ///
+    /// The columns still agree in length, so nothing can be misaligned by it. A
+    /// day carrying no code and no temperatures carries no information either, so
+    /// it is dropped and the rest is served. Throwing away fifteen good days to
+    /// protest about an empty sixteenth is the opposite of robust.
+    /// </summary>
+    [Fact]
+    public async Task Drops_a_day_whose_columns_came_back_null_and_serves_the_rest()
+    {
+        var paddedTail = """
+            {
+              "daily": {
+                "time": ["2026-09-07","2026-09-08","2026-09-09"],
+                "weather_code": [0, 2, null],
+                "temperature_2m_max": [31.2, 32.0, null],
+                "temperature_2m_min": [21.4, 21.9, null]
+              }
+            }
+            """;
+        var handler = StubHttpMessageHandler.Returning(HttpStatusCode.OK, paddedTail);
+
+        var forecast = await CreateSut(handler).GetForecastAsync(SanSalvador, CancellationToken.None);
+
+        forecast.Days.Should().HaveCount(2);
+        forecast.Days.Select(day => day.Date)
+            .Should()
+            .Equal(new DateOnly(2026, 9, 7), new DateOnly(2026, 9, 8));
+    }
+
+    /// <summary>
+    /// A gap is dropped on its own terms rather than truncating everything after
+    /// it. Each day carries its own date, so the series stays correct with a hole
+    /// in it — and the days past the hole are still a forecast someone wants.
+    /// </summary>
+    [Fact]
+    public async Task Drops_only_the_incomplete_day_when_the_gap_is_in_the_middle()
+    {
+        var gapped = """
+            {
+              "daily": {
+                "time": ["2026-09-07","2026-09-08","2026-09-09"],
+                "weather_code": [0, null, 3],
+                "temperature_2m_max": [31.2, 32.0, 30.4],
+                "temperature_2m_min": [21.4, 21.9, 22.0]
+              }
+            }
+            """;
+        var handler = StubHttpMessageHandler.Returning(HttpStatusCode.OK, gapped);
+
+        var forecast = await CreateSut(handler).GetForecastAsync(SanSalvador, CancellationToken.None);
+
+        forecast.Days.Select(day => day.Date)
+            .Should()
+            .Equal(new DateOnly(2026, 9, 7), new DateOnly(2026, 9, 9));
+    }
+
+    /// <summary>
+    /// No usable day at all is an unusable answer, and it has to leave here as a
+    /// provider failure rather than as an empty series. An empty series would be
+    /// cached for ten minutes and written to history as a snapshot, poisoning the
+    /// two fallbacks that exist precisely for this moment; a provider failure
+    /// sends the use case down the degradation chain instead.
+    /// </summary>
+    [Fact]
+    public async Task Reports_a_provider_failure_when_no_day_survives()
+    {
+        var empty = """
+            {
+              "daily": {
+                "time": ["2026-09-07","2026-09-08"],
+                "weather_code": [null, null],
+                "temperature_2m_max": [null, null],
+                "temperature_2m_min": [null, null]
+              }
+            }
+            """;
+        var handler = StubHttpMessageHandler.Returning(HttpStatusCode.OK, empty);
+
+        var act = () => CreateSut(handler).GetForecastAsync(SanSalvador, CancellationToken.None);
+
+        await act.Should().ThrowAsync<WeatherProviderException>();
+    }
+
     [Fact]
     public async Task Reports_a_provider_failure_when_the_transport_breaks()
     {

@@ -221,6 +221,46 @@ also treated as a side effect: if Postgres is down, the error is logged and the
 forecast is still returned. A failed `INSERT` the caller never asked for must not
 turn a good answer into a `500`.
 
+### A partial answer is still an answer
+
+The ladder above is about an upstream that stops answering. The harder case is an
+upstream that answers with a hole in it, and it took a live payload to find.
+
+Open-Meteo pads the tail of the horizon with `null` when the location's local
+calendar runs past the model's data window. Asking for sixteen days at Atlantis,
+ZA returned fifteen real days and a sixteenth of `weather_code: null`,
+`temperature_2m_max: null`, `temperature_2m_min: null`. The wire type declared
+those columns as `IReadOnlyList<int>` and `IReadOnlyList<double>`, so
+System.Text.Json threw while reading the body — and the caller lost all fifteen
+usable days to a `503`.
+
+It depends on the location's UTC offset and the hour you ask, which is what makes
+it nasty: at one point London and Nairobi were both answering `503` while San
+Salvador, Madrid and Tokyo answered `200`. Nothing was wrong with the service, the
+network or the cache. It was simply not San Salvador's turn yet.
+
+The columns are nullable now, and the adapter distinguishes the two ways a
+columnar payload can be wrong, because they deserve opposite treatment:
+
+- A column of the **wrong length** is still fatal. Zipping mismatched columns
+  pairs the wrong temperature with the wrong day and yields a forecast that looks
+  entirely plausible and is wrong — worse than no forecast at all.
+- A **null entry** inside correctly-sized columns is not. Nothing can be
+  misaligned by it, and a day with no condition and no temperatures has nothing to
+  render, so that day is dropped and the rest is served. Every `DailyForecast`
+  carries its own date, so the series survives a hole in the middle as well as one
+  at the end.
+
+If no day survives, the answer leaves as a provider failure rather than as an
+empty series — which matters more than it looks. An empty series would be cached
+for ten minutes and written to history as a snapshot, poisoning the exact two
+fallbacks that exist for this moment. A provider failure sends the use case down
+the ladder instead.
+
+The lesson is the one the brief is really asking about. Resilience is not only
+retries and a breaker around a dead socket; it is also refusing to throw away
+fifteen good days because the sixteenth is empty.
+
 ### The circuit breaker
 
 Configured explicitly rather than through `AddStandardResilienceHandler()`. The
@@ -361,14 +401,20 @@ One migration set generated for either provider fails on the other. Each
 ```bash
 make test              # everything
 make test-unit         # fast, no I/O
-make test-integration  # real SQLite, real HTTP, real ASP.NET pipeline
+make test-integration  # real SQLite, real Postgres, real HTTP, real ASP.NET pipeline
+make test-postgres     # only the container-backed Postgres tests
 ```
 
-95 tests, in two layers that do genuinely different jobs.
+128 tests on the backend — 64 unit, 64 integration — in two layers that do
+genuinely different jobs.
 
 **Unit tests** cover the use cases through substituted ports. No network, no
 database, no `Thread.Sleep` — `FakeTimeProvider` moves the clock, so testing a
-24-hour cache retention window takes no wall-clock time at all.
+24-hour cache retention window takes no wall-clock time at all. One of them
+earns its place without touching a port at all: `ResilienceSettingsTests` asserts
+the two arithmetic constraints the resilience numbers have to satisfy, against
+the production defaults, so a plausible-looking edit to a timeout fails a test
+rather than quietly spending latency on an attempt that cannot finish.
 
 **Integration tests** run against real infrastructure:
 
@@ -377,14 +423,46 @@ database, no `Thread.Sleep` — `FakeTimeProvider` moves the clock, so testing a
 - `CircuitBreakerTests` — a real WireMock HTTP server told to misbehave, at
   production's retry count and throughput gate so retries are shown counting
   toward tripping it.
-- `ResilienceSettingsTests` — the two arithmetic constraints the resilience
-  numbers have to satisfy, checked against the production defaults.
 - `RateLimitingTests` — limits turned down to single digits, checking the edge:
   the `429`, its `Retry-After`, its problem document, and that search and
   forecast do not share a budget.
 - `WeatherEndpointsTests` — the real application through `WebApplicationFactory`,
   replacing only the upstream and the clock. Real routing, model binding,
   middleware, ProblemDetails and EF stay under test.
+- `PostgresForecastHistoryTests` — a real Postgres 16 in a container, via
+  Testcontainers. See below: this suite exists because the other ten could not
+  catch what it catches.
+
+**Why a second database suite.** SQLite proves the *logic* — the windows, the
+ordering, the pruning. It cannot prove anything about the engine production runs,
+and that gap was real: the Postgres migrations were versioned in this repository
+and **executed by no test at all**. A broken one would have passed the whole suite
+and failed on `docker compose up`, in front of whoever ran it first.
+
+So this suite is deliberately not a mirror of the SQLite one. Re-proving the age
+cap on a second engine buys little; what earns its place is what is
+engine-specific and therefore invisible to SQLite:
+
+- the Postgres migrations apply from an empty database and leave none pending
+- `timestamp with time zone` accepts what the repository writes — Npgsql *refuses*
+  a `DateTime` whose kind is unspecified, so that pairing either works or throws
+- `DateOnly` landed as a real `date` column, not as text that sorts correctly by
+  accident
+- `ON DELETE CASCADE` exists in the actual catalogue. The prune uses
+  `ExecuteDeleteAsync`, which never loads the child rows, so the database is what
+  clears them — and a count on an engine that never had the cascade would pass
+  either way
+- snake_case naming actually applied, because Postgres folds unquoted identifiers
+  to lower case and a PascalCase column needs quoting forever
+
+Each test gets its own freshly migrated database inside one shared container, so
+the migrations are exercised every time rather than once, and nothing leaks
+between tests.
+
+> **Without Docker these skip rather than fail.** The README promises the suite
+> runs with nothing but the .NET 8 SDK, so `RequiresDockerFactAttribute` reports
+> them as skipped when no daemon answers. "This machine has no Docker" and "this
+> suite is broken" deserve different words.
 
 > **On `UseInMemoryDatabase`:** it is not used here, and that decision paid for
 > itself during development. `EfForecastHistoryTests` immediately failed with
@@ -481,7 +559,7 @@ there will be by Tuesday.
 The coverage column arrived late, and how it arrived is the same lesson from a
 different angle. Both projects reported **0.0%** for as long as no report was
 handed to the scanner — not "unknown", not a warning, a confident zero sitting
-next to three A ratings while 168 tests passed on every run. A number a tool
+next to three A ratings while 184 tests passed on every run. A number a tool
 prints is only worth what you know about where it came from.
 
 It does catch what it is good at, including on work done here: extracting

@@ -1,9 +1,23 @@
 <!doctype html>
-<html lang="es" class="h-full">
+<!--
+  data-theme pins the palette to light whatever the machine asks for. The dark
+  tokens are still in the stylesheet and still written against
+  prefers-color-scheme; this attribute is the single switch holding them off.
+  Deleting it here is all it takes to give the OS its preference back.
+-->
+<html lang="es" class="h-full" data-theme="light">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="color-scheme" content="light dark" />
+    <!--
+      This does the OTHER half, and it is the half people forget. The attribute
+      above only governs the tokens in the stylesheet; this governs what the
+      BROWSER paints on its own — scrollbars, the canvas behind the page, the
+      default look of the search field and the range radios. Left at "light
+      dark" on a machine set to dark, the page renders light and then scrolls
+      with a black scrollbar and dark native controls.
+    -->
+    <meta name="color-scheme" content="light" />
     <meta
       name="description"
       content="Pronóstico del tiempo a 7 días para San Salvador, servido por la API de WeatherService."

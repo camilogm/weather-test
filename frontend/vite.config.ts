@@ -29,9 +29,12 @@ export default defineConfig({
       // `text` is for the person running it; `lcov` is what SonarQube parses.
       reporter: ['text', 'lcov'],
       reportsDirectory: './coverage',
-      // Without `all`, a file no test ever imports is simply absent from the
-      // report — and a file with no tests is exactly what coverage is for.
-      all: true,
+      // Naming `include` is what pulls in a file no test ever imports — and a
+      // file with no tests is exactly what coverage is for. Vitest defaults to
+      // reporting only what the tests loaded; an explicit `include` overrides
+      // that. It replaces the `all` flag, which Vitest 4 removed in favour of
+      // exactly this, so setting `all` here is a type error rather than a
+      // silently ignored option.
       include: ['src/**/*.{ts,tsx}'],
       exclude: [
         'src/**/*.test.{ts,tsx}',

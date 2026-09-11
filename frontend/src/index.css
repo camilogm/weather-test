@@ -89,6 +89,52 @@
   */
   --shadow-control: 0 1px 2px oklch(0% 0 0 / 0.06), 0 4px 12px oklch(0% 0 0 / 0.07);
   --shadow-popover: 0 8px 24px oklch(0% 0 0 / 0.12), 0 1px 2px oklch(0% 0 0 / 0.08);
+
+  /*
+    Changing city is a move across the map, so the page moves with it: the new
+    place slides in from the side it actually lies on. Go east to Madrid and it
+    arrives from the right; go west to Bogotá and it arrives from the left.
+
+    The distance is deliberately short. 40px is enough to read as a direction
+    and not enough to read as a page transition in a native app — this is a
+    board of numbers being replaced, not a screen being pushed onto a stack.
+
+    The curve covers most of that distance in the first third and spends the
+    rest settling, which is what keeps a 380ms move feeling immediate. A
+    symmetric ease over the same duration feels like waiting.
+
+    `both` matters: without it the element paints once at its resting position
+    before the first animation frame lands, which is a visible flash of the
+    finished layout at the exact moment the animation is meant to start.
+  */
+  --animate-arrive-east: arrive-east 380ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-arrive-west: arrive-west 380ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-arrive: arrive 280ms cubic-bezier(0.16, 1, 0.3, 1) both;
+
+  /*
+    Only a `from` block. The absent `to` resolves to the element's own computed
+    style, so these keyframes never have to know what they are animating — the
+    same three names work on a skeleton, on a forecast and on an error panel.
+  */
+  @keyframes arrive-east {
+    from {
+      opacity: 0;
+      transform: translate3d(2.5rem, 0, 0);
+    }
+  }
+
+  @keyframes arrive-west {
+    from {
+      opacity: 0;
+      transform: translate3d(-2.5rem, 0, 0);
+    }
+  }
+
+  @keyframes arrive {
+    from {
+      opacity: 0;
+    }
+  }
 }
 
 /*

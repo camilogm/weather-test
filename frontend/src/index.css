@@ -143,9 +143,20 @@
   nested in a media query does not stay nested — it silently overwrites the
   first one and the page renders dark at every hour of the day. Unlayered CSS
   outranks anything Tailwind emits into a layer, so this override always wins.
+
+  Held off for now, and held off WITHOUT deleting anything. index.html carries
+  data-theme="light", so `:not([data-theme='light'])` never matches and none of
+  the palette below is applied — but every token stays written down, still
+  tuned, still paired with the light value it was chosen against. Dropping that
+  one attribute from the <html> tag restores the OS preference exactly as it
+  behaved before, with no other edit here.
+
+  The media query is kept on purpose rather than folded into the selector. Dark
+  was always meant to follow the machine, not a switch in the interface; the
+  attribute is a temporary lid on that, not a replacement for it.
 */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme='light']) {
     --color-canvas: oklch(0% 0 0); /* #000000 */
     --color-surface: oklch(24% 0.004 286); /* #1d1d1f */
     --color-surface-muted: oklch(30% 0.004 286);

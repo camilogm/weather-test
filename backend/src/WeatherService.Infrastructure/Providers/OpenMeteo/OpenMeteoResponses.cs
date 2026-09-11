@@ -12,11 +12,23 @@ namespace WeatherService.Infrastructure.Providers.OpenMeteo;
 internal sealed record OpenMeteoForecastResponse(
     [property: JsonPropertyName("daily")] OpenMeteoDailyBlock? Daily);
 
+/// <summary>
+/// Every column holds NULLABLE entries, and that is the whole point of this type.
+///
+/// Open-Meteo pads the tail of the horizon with nulls when the location's local
+/// calendar runs past the model's data window, so a sixteen-day request can come
+/// back with fifteen good days and a null sixteenth. Declared as
+/// <c>IReadOnlyList&lt;int&gt;</c>, that single null made System.Text.Json throw
+/// while reading the body — which cost the caller all fifteen usable days and
+/// surfaced as a 503 for any location unlucky with its UTC offset. The gap is the
+/// adapter's business to interpret, so the wire type has to be able to carry it
+/// this far rather than failing to parse it.
+/// </summary>
 internal sealed record OpenMeteoDailyBlock(
-    [property: JsonPropertyName("time")] IReadOnlyList<string>? Time,
-    [property: JsonPropertyName("weather_code")] IReadOnlyList<int>? WeatherCode,
-    [property: JsonPropertyName("temperature_2m_max")] IReadOnlyList<double>? MaxTemperature,
-    [property: JsonPropertyName("temperature_2m_min")] IReadOnlyList<double>? MinTemperature);
+    [property: JsonPropertyName("time")] IReadOnlyList<string?>? Time,
+    [property: JsonPropertyName("weather_code")] IReadOnlyList<int?>? WeatherCode,
+    [property: JsonPropertyName("temperature_2m_max")] IReadOnlyList<double?>? MaxTemperature,
+    [property: JsonPropertyName("temperature_2m_min")] IReadOnlyList<double?>? MinTemperature);
 
 internal sealed record OpenMeteoCurrentResponse(
     [property: JsonPropertyName("current")] OpenMeteoCurrentBlock? Current);

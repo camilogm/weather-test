@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+import time
 import urllib.error
 import urllib.request
 
@@ -23,6 +24,9 @@ MEASURES = [
     "vulnerabilities",
     "security_hotspots",
     "code_smells",
+    "coverage",
+    "line_coverage",
+    "uncovered_lines",
     "duplicated_lines_density",
     "duplicated_blocks",
     "cognitive_complexity",
@@ -38,6 +42,9 @@ LABELS = {
     "vulnerabilities": "Vulnerabilities",
     "security_hotspots": "Security hotspots",
     "code_smells": "Code smells",
+    "coverage": "Coverage %",
+    "line_coverage": "Line coverage %",
+    "uncovered_lines": "Uncovered lines",
     "duplicated_lines_density": "Duplication %",
     "duplicated_blocks": "Duplicated blocks",
     "cognitive_complexity": "Cognitive complexity",
@@ -77,6 +84,25 @@ def _basic(user: str) -> str:
     return base64.b64encode(f"{user}:".encode()).decode()
 
 
+def wait_for_processing(timeout: float = 120.0) -> None:
+    """Block until SonarQube has finished ingesting every submitted analysis.
+
+    Uploading a report and having it processed are two different events, and the
+    scanner returns after the first one. Printing straight away reads the
+    *previous* analysis and reports issues that were fixed minutes ago — which
+    is worse than reporting nothing, because it looks like a result.
+    """
+    deadline = time.monotonic() + timeout
+
+    while time.monotonic() < deadline:
+        status = get("/api/ce/activity_status")
+        if status.get("pending", 0) == 0 and status.get("inProgress", 0) == 0:
+            return
+        time.sleep(1)
+
+    print(f"{DIM}still processing after {timeout:.0f}s; numbers may lag{RESET}")
+
+
 def report(project: str) -> int:
     try:
         measures = get(f"/api/measures/component?component={project}&metricKeys={','.join(MEASURES)}")
@@ -112,6 +138,8 @@ def report(project: str) -> int:
 
 
 def main() -> None:
+    wait_for_processing()
+
     projects = sys.argv[1:] or ["weather-backend", "weather-frontend"]
     for project in projects:
         report(project)

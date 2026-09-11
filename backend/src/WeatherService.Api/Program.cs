@@ -63,7 +63,7 @@ app.MapGet("/health", () => Results.Ok(new { status = "ok" })).WithTags("Diagnos
 
 await ApplyMigrationsAsync(app);
 
-app.Run();
+await app.RunAsync();
 
 /// <summary>
 /// Brings the schema up to date on boot.
@@ -112,4 +112,10 @@ static async Task ApplyMigrationsAsync(WebApplication app)
 }
 
 /// <summary>Exposed so WebApplicationFactory can boot this exact application in tests.</summary>
-public partial class Program;
+public partial class Program
+{
+    // WebApplicationFactory only ever reads this type to find the assembly and
+    // its entry point; nothing constructs it. The private constructor says so,
+    // and stops the implicit public one from inviting anyone to try.
+    private Program() { }
+}

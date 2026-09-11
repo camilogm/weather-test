@@ -65,9 +65,11 @@ export class WeatherApiError extends Error {
   readonly status: number | undefined
 
   constructor(kind: WeatherErrorKind, status?: number) {
+    const httpStatus = status ? `, HTTP ${status}` : ''
+
     // English on purpose: this message is for a console and a stack trace,
     // never for a person using the product.
-    super(`Weather API request failed (${kind}${status ? `, HTTP ${status}` : ''})`)
+    super(`Weather API request failed (${kind}${httpStatus})`)
     this.name = 'WeatherApiError'
     this.kind = kind
     this.status = status

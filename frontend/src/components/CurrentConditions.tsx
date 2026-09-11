@@ -3,7 +3,7 @@ import { t, translateCondition } from '../i18n'
 import { WeatherIcon } from './WeatherIcon'
 import { formatObservedAt, formatTemperature } from './format'
 
-export function CurrentConditions({ current }: { current: CurrentWeather }) {
+export function CurrentConditions({ current }: Readonly<{ current: CurrentWeather }>) {
   const condition = translateCondition(current.condition)
 
   return (
@@ -69,7 +69,7 @@ export function CurrentConditions({ current }: { current: CurrentWeather }) {
   )
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({ label, value }: Readonly<{ label: string; value: string }>) {
   return (
     <div>
       <dt className="text-label font-medium uppercase text-ink-muted">{label}</dt>

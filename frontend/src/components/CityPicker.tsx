@@ -26,7 +26,7 @@ interface Props {
  * The keyboard and focus rules of the ARIA combobox pattern live in
  * useCombobox; what is left here is what a suggestion looks like.
  */
-export function CityPicker({ selected, onSelect }: Props) {
+export function CityPicker({ selected, onSelect }: Readonly<Props>) {
   const [term, setTerm] = useState('')
   const { status, results } = useLocationSearch(term)
 

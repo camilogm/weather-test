@@ -12,7 +12,7 @@ interface Props {
  * live here. Drawn with currentColor plus two theme tokens, which means they
  * follow the palette in both light and dark without a second asset set.
  */
-export function WeatherIcon({ name, label, className = 'size-10' }: Props) {
+export function WeatherIcon({ name, label, className = 'size-10' }: Readonly<Props>) {
   return (
     <svg
       viewBox="0 0 48 48"

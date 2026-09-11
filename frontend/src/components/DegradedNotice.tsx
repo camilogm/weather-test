@@ -7,7 +7,7 @@ import { formatObservedAt } from './format'
  * that on is the whole point — a stale forecast presented as current is worse
  * than an honest warning.
  */
-export function DegradedNotice({ provenance }: { provenance: Provenance }) {
+export function DegradedNotice({ provenance }: Readonly<{ provenance: Provenance }>) {
   if (!provenance.degraded) {
     return null
   }
@@ -21,10 +21,7 @@ export function DegradedNotice({ provenance }: { provenance: Provenance }) {
       ink colour so it clears contrast in both schemes without a second token
       invented to hold a darker version of the same orange.
     */
-    <div
-      role="status"
-      className="flex items-start gap-3 rounded-card bg-warning/10 px-5 py-4 text-body text-ink"
-    >
+    <output className="flex items-start gap-3 rounded-card bg-warning/10 px-5 py-4 text-body text-ink">
       <svg viewBox="0 0 20 20" className="mt-1 size-5 shrink-0 text-warning" aria-hidden="true">
         <path
           d="M10 2.5 18.5 17H1.5L10 2.5Z"
@@ -43,6 +40,6 @@ export function DegradedNotice({ provenance }: { provenance: Provenance }) {
           {t('degraded.updatedAt', { when: formatObservedAt(provenance.retrievedAt) })}
         </span>
       </p>
-    </div>
+    </output>
   )
 }

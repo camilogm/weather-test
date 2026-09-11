@@ -45,6 +45,12 @@
     <!-- FakeTimeProvider: drives the clock in tests without Thread.Sleep. -->
     <PackageVersion Include="Microsoft.Extensions.TimeProvider.Testing" Version="8.10.0" />
     <PackageVersion Include="WireMock.Net" Version="1.6.7" />
+    <!--
+      Throws a real Postgres in a container for the tests that have to run on the
+      engine production uses. SQLite proves the logic; only Postgres proves the
+      Postgres migrations.
+    -->
+    <PackageVersion Include="Testcontainers.PostgreSql" Version="3.10.0" />
     <PackageVersion Include="xunit" Version="2.9.2" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="2.8.2" />
     <PackageVersion Include="coverlet.collector" Version="6.0.2" />

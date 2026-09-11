@@ -20,6 +20,8 @@
     <PackageReference Include="WireMock.Net" />
     <!-- SQLite in memory as the test database: genuinely relational, unlike the InMemory provider. -->
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
+    <!-- A real Postgres in a container, for the half SQLite cannot speak for. -->
+    <PackageReference Include="Testcontainers.PostgreSql" />
   </ItemGroup>
 
   <ItemGroup>
